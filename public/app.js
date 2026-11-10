@@ -133,7 +133,10 @@ const regionNames = new Intl.DisplayNames(['en'], {type:'region'});
 const currencyNames = new Intl.DisplayNames(['en'], {type:'currency'});
 const countrySelect = $('#countrySelect'), currencySelect = $('#currencySelect');
 const countries = countryCodes.map(code => ({code, label:regionNames.of(code)})).sort((a,b) => a.label.localeCompare(b.label));
-const currencies = Intl.supportedValuesOf('currency').map(code => ({code, label:`${code} - ${currencyNames.of(code)}`}));
+// Keep common currencies available even when a mobile browser has incomplete
+// Intl currency data (or does not implement supportedValuesOf).
+const currencyCodes = 'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VES VND VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG'.split(' ');
+const currencies = [...new Set([...currencyCodes, ...(Intl.supportedValuesOf?.('currency') || [])])].sort().map(code => ({code, label:`${code} - ${currencyNames.of(code)}`}));
 function populateChoices(select, choices, query, selected) {
   const matches = choices.filter(item => `${item.label} ${item.code}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   const chosen = choices.find(item => item.code === selected);
