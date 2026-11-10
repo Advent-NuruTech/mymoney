@@ -153,7 +153,7 @@ for (const [pickerId, searchId, select, summaryId, placeholder] of [
 ]) {
   const picker = $(`#${pickerId}`), search = $(`#${searchId}`), summary = $(`#${summaryId}`);
   const updateSummary = () => { summary.textContent = select.value ? select.selectedOptions[0].text : placeholder; };
-  picker.addEventListener('toggle', () => { if (picker.open) { document.querySelectorAll('.choice-picker').forEach(other => { if (other !== picker) other.open = false; }); search.focus(); } });
+  picker.addEventListener('toggle', () => { if (picker.open) { document.querySelectorAll('.choice-picker').forEach(other => { if (other !== picker) other.open = false; }); if (!window.matchMedia('(pointer: coarse)').matches) search.focus(); } });
   select.addEventListener('change', () => { updateSummary(); picker.open = false; summary.focus(); });
   picker.updateSummary = updateSummary;
 }
