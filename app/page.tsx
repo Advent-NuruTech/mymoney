@@ -1,0 +1,202 @@
+import Script from 'next/script';
+
+export default function Home() {
+  return (
+    <>
+<div className="app">
+<aside className="sidebar">
+<a className="brand" href="/">
+<span className="brand-icon">✳</span>
+<span>my money<span className="brand-dot">.</span>
+</span>
+</a>
+<p className="side-label">YOUR SPACE</p>
+<nav>
+<a className="nav-active" href="#overview">
+<span>▦</span> Overview</a>
+<a href="#activity">
+<span>◷</span> Transactions</a>
+</nav>
+<div className="side-bottom">
+<div className="side-note">
+<span>✦</span>
+<strong>Little steps,<br />big progress.</strong>
+<p>Every entry brings you closer to your goals.</p>
+</div>
+<div id="account">
+<button className="account-button" id="signIn">↗ &nbsp; Sign in to sync</button>
+</div>
+</div>
+</aside>
+<main>
+<header>
+<div className="mobile-brand">
+<span className="brand-icon">✳</span> my money<span className="brand-dot">.</span>
+</div>
+<div className="header-right">
+<span className="sync-status" id="syncStatus">
+<i>
+</i> Checking connection</span>
+<button className="settings-button" id="openSettings" type="button">Settings</button>
+<button className="avatar" id="accountShortcut" aria-label="Account">☺</button>
+</div>
+</header>
+<div className="content" id="overview">
+<section className="intro">
+<div>
+<p className="eyebrow">YOUR MONEY, MADE SIMPLE <span>✳</span>
+</p>
+<h1>Good to see you<span className="accent">.</span>
+</h1>
+<p className="subtitle">A little clarity goes a long way. Let’s make today count.</p>
+</div>
+<button className="primary desktop-add" data-open="">
+<span>＋</span> Add transaction</button>
+</section>
+<section className="balance-card">
+<div className="balance-copy">
+<div className="balance-top">
+<span className="balance-label">TOTAL BALANCE</span>
+<span className="sparkle">✳</span>
+</div>
+<h2 id="balance">$0.00</h2>
+<p>Everything you have, all in one place.</p>
+<div className="balance-footer">
+<span className="live-dot">
+</span> Your money at a glance</div>
+</div>
+<div className="balance-art" aria-hidden="true">
+<div className="orbit orbit-one">
+</div>
+<div className="orbit orbit-two">
+</div>
+<div className="coin coin-one">✳</div>
+<div className="coin coin-two">$</div>
+<span className="art-star">✦</span>
+</div>
+</section>
+<section className="stats">
+<article className="stat">
+<div className="stat-icon income-icon">↙</div>
+<div>
+<p>Money in</p>
+<strong id="income">$0.00</strong>
+<small>All income</small>
+</div>
+<span className="stat-arrow">↗</span>
+</article>
+<article className="stat">
+<div className="stat-icon expense-icon">↗</div>
+<div>
+<p>Money out</p>
+<strong id="expenses">$0.00</strong>
+<small>All expenses</small>
+</div>
+<span className="stat-arrow">↗</span>
+</article>
+<article className="stat habit">
+<div className="stat-icon habit-icon">✦</div>
+<div>
+<p> Your progress</p>
+<strong id="entryCount">0 entries</strong>
+<small>Every one counts</small>
+</div>
+<span className="stat-arrow">↗</span>
+</article>
+</section>
+<section className="activity" id="activity">
+<div className="section-heading">
+<div>
+<p className="eyebrow">THE LITTLE DETAILS</p>
+<h3>Recent activity <span>✳</span>
+</h3>
+<p>Your money story, one entry at a time.</p>
+</div>
+<div className="filters" aria-label="Filter transactions">
+<button className="filter active" data-filter="all">All</button>
+<button className="filter" data-filter="income">Income</button>
+<button className="filter" data-filter="expense">Expenses</button>
+</div>
+</div>
+<div className="history-tools"><label className="search-field"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><span className="sr-only">Search transactions</span><input id="transactionSearch" type="search" placeholder="Search description or category" /></label><p id="resultsCount" aria-live="polite"></p></div>
+<div id="transactions">
+</div>
+<div className="pagination" id="pagination" aria-label="Transaction pages"></div>
+</section>
+<div className="bottom-note">
+<span>✳</span> Small entries. Big picture. <span>Made for your peace of mind.</span>
+</div>
+</div>
+</main>
+<nav className="mobile-nav" aria-label="Main navigation">
+<a href="#overview"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-7h5v7"/></svg>Overview</a>
+<button data-open="" className="mobile-add"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Add</button>
+<a href="#activity"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Activity</a>
+</nav>
+</div>
+<dialog id="entryDialog">
+<form id="entryForm">
+<div className="modal-head">
+<div>
+<p className="eyebrow">ONE LITTLE STEP</p>
+<h3 id="dialogTitle">Add a transaction<span className="accent">.</span>
+</h3>
+</div>
+<button type="button" className="close" id="closeDialog" aria-label="Close">×</button>
+</div>
+<p className="modal-sub">Keep track of the little things. They add up.</p>
+<div className="type-picker">
+<label>
+<input type="radio" name="type" value="expense" defaultChecked />
+<span>↗ &nbsp; Expense</span>
+</label>
+<label>
+<input type="radio" name="type" value="income" />
+<span>↙ &nbsp; Income</span>
+</label>
+</div>
+<label className="field">Amount <div className="amount-input">
+<span id="amountCurrency">USD</span>
+<input name="amount" type="number" inputMode="decimal" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required />
+</div>
+</label>
+<label className="field">What was it for?<input name="description" maxLength={100} placeholder="e.g. Morning coffee" required />
+</label>
+<div className="form-row">
+<label className="field">Category<select name="category">
+<option>Food & drink</option>
+<option>Shopping</option>
+<option>Transport</option>
+<option>Bills</option>
+<option>Health</option>
+<option>Entertainment</option>
+<option>Salary</option>
+<option>Other</option>
+</select>
+</label>
+<label className="field">Date<input name="date" type="date" required />
+</label>
+</div>
+<button className="primary save" type="submit">Save transaction <span>→</span>
+</button>
+<button className="save-another" type="submit" name="saveAnother" value="yes">Save and add another</button>
+<p className="form-hint">✦ &nbsp; Saved on this device, even when you’re offline.</p>
+</form>
+</dialog>
+<dialog id="setupDialog" aria-labelledby="setupTitle">
+<form id="setupForm">
+<div className="modal-head"><div><p className="eyebrow">MAKE IT YOURS</p><h3 id="setupTitle">Set up your money</h3></div><button type="button" className="close" id="closeSetup" aria-label="Close setup">&times;</button></div>
+<p className="modal-sub">Choose your country and the currency you use to record transactions.</p>
+<label className="field">Country<select name="country" id="countrySelect" required><option value="">Select your country</option></select></label>
+<label className="field">Currency<select name="currency" id="currencySelect" required><option value="">Select your currency</option></select></label>
+<p className="setup-note">Amounts use two decimal places. Changing currency later changes the label; it does not convert existing amounts.</p>
+<p id="setupError" className="setup-error" role="alert"></p>
+<button className="primary save" type="submit">Save settings</button>
+</form>
+</dialog>
+<div id="toast" role="status">
+</div>
+<Script src="/app.js" type="module" strategy="afterInteractive" />
+    </>
+  );
+}

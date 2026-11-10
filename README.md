@@ -17,7 +17,7 @@ For a production server, run `npm run build` followed by `npm start`. Run `npm t
 
 ## Enable accounts and sync
 
-The supplied Clerk test application is configured in the local `.env` file. To use another Clerk application, update `.env` or set the following environment variables before starting the server:
+Create a local `.env` file or set the following environment variables before starting the server. Local environment files are excluded from Git:
 
 - `CLERK_PUBLISHABLE_KEY`: the Clerk publishable key.
 - `CLERK_DOMAIN`: the host in the Clerk Frontend API URL, without `https://` (for example `example.clerk.accounts.dev`). It must match the `iss` claim in Clerk session tokens.
