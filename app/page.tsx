@@ -53,6 +53,7 @@ export default function Home() {
 <button className="primary desktop-add" data-open="">
 <span>＋</span> Add transaction</button>
 </section>
+<div id="settingsReminder" className="settings-reminder" hidden><div><strong>Make your money feel local</strong><p>Set your country and currency so amounts are shown correctly.</p></div><button type="button" id="reminderSettings">Set country &amp; currency</button></div>
 <section className="balance-card">
 <div className="balance-copy">
 <div className="balance-top">
@@ -170,6 +171,24 @@ export default function Home() {
 <option>Bills</option>
 <option>Health</option>
 <option>Entertainment</option>
+<option>Tithes</option>
+<option>Offerings</option>
+<option>Giving &amp; donations</option>
+<option>Housing &amp; rent</option>
+<option>Groceries</option>
+<option>Utilities</option>
+<option>Education</option>
+<option>Family &amp; childcare</option>
+<option>Insurance</option>
+<option>Personal care</option>
+<option>Travel</option>
+<option>Subscriptions</option>
+<option>Debt payments</option>
+<option>Savings &amp; investments</option>
+<option>Gifts</option>
+<option>Business</option>
+<option>Freelance</option>
+<option>Interest &amp; dividends</option>
 <option>Salary</option>
 <option>Other</option>
 </select>
@@ -187,13 +206,14 @@ export default function Home() {
 <form id="setupForm">
 <div className="modal-head"><div><p className="eyebrow">MAKE IT YOURS</p><h3 id="setupTitle">Set up your money</h3></div><button type="button" className="close" id="closeSetup" aria-label="Close setup">&times;</button></div>
 <p className="modal-sub">Choose your country and the currency you use to record transactions.</p>
-<label className="field">Country<select name="country" id="countrySelect" required><option value="">Select your country</option></select></label>
-<label className="field">Currency<select name="currency" id="currencySelect" required><option value="">Select your currency</option></select></label>
+<div className="field">Country<details className="choice-picker" id="countryPicker"><summary id="countrySummary">Select your country</summary><div className="choice-menu"><label className="sr-only" htmlFor="countrySearch">Search countries</label><input id="countrySearch" type="search" placeholder="Search by country or code" autoComplete="off" /><select name="country" id="countrySelect" size={6} aria-label="Country"><option value="">Select your country</option></select></div></details></div>
+<div className="field">Currency<details className="choice-picker" id="currencyPicker"><summary id="currencySummary">Select your currency</summary><div className="choice-menu"><label className="sr-only" htmlFor="currencySearch">Search currencies</label><input id="currencySearch" type="search" placeholder="Search by currency or code" autoComplete="off" /><select name="currency" id="currencySelect" size={6} aria-label="Currency"><option value="">Select your currency</option></select></div></details></div>
 <p className="setup-note">Amounts use two decimal places. Changing currency later changes the label; it does not convert existing amounts.</p>
 <p id="setupError" className="setup-error" role="alert"></p>
 <button className="primary save" type="submit">Save settings</button>
 </form>
 </dialog>
+<dialog id="detailDialog" aria-labelledby="detailTitle"><div className="modal-head"><div><p className="eyebrow">TRANSACTION DETAILS</p><h3 id="detailTitle">Transaction</h3></div><button type="button" className="close" id="closeDetail" aria-label="Close details">&times;</button></div><div id="detailContent"></div><div className="detail-actions"><button type="button" className="primary" id="detailEdit">Edit transaction</button><button type="button" className="detail-delete" id="detailDelete">Delete</button></div></dialog>
 <div id="toast" role="status">
 </div>
 <Script src="/app.js" type="module" strategy="afterInteractive" />
