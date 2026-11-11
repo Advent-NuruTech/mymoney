@@ -125,7 +125,7 @@ export default function Home() {
 <div className="pagination" id="pagination" aria-label="Transaction pages"></div>
 </section>
 <div className="bottom-note">
-<span>✳</span> Small entries. Big picture. <span>Made for your peace of mind.</span>
+<span>✳</span> Small entries. Big picture. <span>Made for your accountability.</span>
 </div>
 </div>
 </main>
