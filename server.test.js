@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 
-test('serves the app, exposes Clerk configuration, and protects synchronization', async () => {
+for (const keyName of ['CLERK_PUBLISHABLE_KEY', 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY']) {
+test(`serves the app, exposes runtime ${keyName}, and protects synchronization`, async () => {
   const port = 3199;
-  const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port)], {env:{...process.env, CLERK_DOMAIN:'example.clerk.accounts.dev', CLERK_PUBLISHABLE_KEY:'pk_test_example'}});
+  const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port)], {env:{...process.env, CLERK_DOMAIN:'example.clerk.accounts.dev', CLERK_PUBLISHABLE_KEY:'', NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:'', [keyName]:'pk_test_example', CLERK_SECRET_KEY:'sk_test_do_not_expose'}});
   try {
     await new Promise((resolve, reject) => {
       let output = '';
@@ -18,9 +19,15 @@ test('serves the app, exposes Clerk configuration, and protects synchronization'
       assert.equal(response.status, 200, path);
     }
     const config = await (await fetch(`http://localhost:${port}/api/config`)).json();
-    assert.equal(config.clerkDomain, 'example.clerk.accounts.dev');
-    assert.equal(config.publishableKey, 'pk_test_example');
+    assert.deepEqual(config, { clerkDomain: 'example.clerk.accounts.dev', publishableKey: 'pk_test_example' });
     const response = await fetch(`http://localhost:${port}/api/sync`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries:[]})});
     assert.equal(response.status, 401);
-  } finally { server.kill(); }
+  } finally {
+    if (server.exitCode === null) {
+      const exited = new Promise(resolve => server.once('exit', resolve));
+      server.kill();
+      await exited;
+    }
+  }
 });
+}

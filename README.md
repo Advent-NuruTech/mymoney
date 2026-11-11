@@ -19,7 +19,8 @@ For a production server, run `npm run build` followed by `npm start`. Run `npm t
 
 Create a local `.env` file or set the following environment variables before starting the server. Local environment files are excluded from Git:
 
-- `CLERK_PUBLISHABLE_KEY`: the Clerk publishable key.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: the Clerk publishable key. The existing `CLERK_PUBLISHABLE_KEY` name is also supported and takes precedence if both are set. Enable runtime availability in Coolify; the configuration endpoint reads this value when requested.
+- `CLERK_SECRET_KEY` is not used by this app's current authentication flow and is never returned by the configuration endpoint.
 - `CLERK_DOMAIN`: the host in the Clerk Frontend API URL, without `https://` (for example `example.clerk.accounts.dev`). It must match the `iss` claim in Clerk session tokens.
 - `NEXT_PUBLIC_SUPABASE_URL`: your Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: its publishable API key.
