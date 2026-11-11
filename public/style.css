@@ -15,3 +15,14 @@
 .brand-dot,.accent{color:#70b600}
 
 .transaction .value.negative,.detail-amount.negative{color:#a43832}.sign-out-button{border:1px solid #e6ece2;background:#fff;border-radius:8px;padding:9px 12px;color:#70413d;font-size:12px;font-weight:700}.sign-out-button[hidden]{display:none}@media(max-width:480px){.header-right{gap:8px}.sign-out-button{padding:8px;font-size:11px}}
+
+/* Logo-derived brand colors and account panel */
+:root{--brand-green:#003b19;--brand-lime:#d8f840}
+.brand,.mobile-brand{color:var(--brand-green)}
+.brand-dot,.accent{color:#75a900}
+.primary,.balance-card,.mobile-nav .mobile-add span{background:var(--brand-green)}
+.balance-card .sparkle,.balance-card .art-star{color:var(--brand-lime)}
+.coin-one{background:var(--brand-lime);color:var(--brand-green)}
+.sidebar nav .nav-active{color:var(--brand-green)}
+.avatar,.account-avatar{background:var(--brand-green);color:var(--brand-lime);font-weight:700}
+.account-panel{padding:30px}.account-identity{display:flex;align-items:center;gap:14px;margin:24px 0}.account-avatar{display:grid;place-items:center;width:52px;height:52px;border-radius:17px;font-size:21px;flex:none}.account-identity strong,.account-identity p{display:block;overflow-wrap:anywhere}.account-identity strong{font:700 16px Manrope,sans-serif;color:var(--brand-green)}.account-identity p{font-size:12px;color:#61786a;margin:5px 0 0}.account-connection{display:flex;gap:10px;padding:15px;border-radius:12px;background:#f0f6e9}.account-connection-dot{width:8px;height:8px;border-radius:50%;background:#74a900;flex:none;margin-top:5px}.account-connection strong{font-size:12px;color:var(--brand-green)}.account-connection p{font-size:12px;line-height:1.5;color:#61786a;margin:4px 0 0}.account-actions{display:grid;gap:8px;margin-top:20px}.account-actions button{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:15px;width:100%;padding:14px;border:1px solid #e1eade;border-radius:10px;background:#fff;color:var(--brand-green)}.account-actions button:hover:not(:disabled){background:#f5f9ef}.account-actions button:disabled{opacity:.55;cursor:not-allowed}.account-actions strong,.account-actions small{display:block}.account-actions strong{font-size:13px}.account-actions small{font-size:11px;color:#61786a;margin-top:4px}.account-actions .account-sign-out{justify-content:center;color:#8c3933;font-size:12px;font-weight:700}.account-actions .account-sign-out[hidden]{display:none}@media(max-width:800px){.account-panel{padding:24px}}

@@ -188,14 +188,39 @@ $('#setupForm').onsubmit = async e => {
   } catch (error) { $('#setupError').textContent = error.message || 'Could not save settings. Please try again.'; }
   finally { state.setupSaving = false; button.disabled = false; }
 };
-async function setupAuth() { try { const config = await (await fetch('/api/config')).json(); if(!config.publishableKey || !config.clerkDomain) return; state.configured = true; const script = document.createElement('script'); script.async = true; script.crossOrigin = 'anonymous'; script.dataset.clerkPublishableKey = config.publishableKey; script.src = `https://${config.clerkDomain}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`; await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.appendChild(script)}); await window.Clerk.load(); state.clerk=window.Clerk; async function update() { const previous = state.user; state.user = state.clerk.user?.id || 'guest'; if(state.clerk.user) localStorage.setItem('mm-user',state.user); else localStorage.removeItem('mm-user'); $('#signIn').textContent = state.clerk.user ? '↗  Account & sign out' : '↗  Sign in to sync'; $('#signIn').textContent = state.clerk.user ? 'Edit profile' : 'Sign in to sync'; $('#signOut').hidden = !state.clerk.user; const name = state.clerk.user?.fullName || state.clerk.user?.username || state.clerk.user?.primaryEmailAddress?.emailAddress; $('#accountShortcut').textContent = name ? name.trim().charAt(0).toUpperCase() : '?'; $('#accountShortcut').setAttribute('aria-label', name ? `Edit profile for ${name}` : 'Account'); const accountPreferences = state.clerk.user?.unsafeMetadata?.moneyPreferences;
+let authLoading = false;
+async function setupAuth() { if (authLoading || state.clerk) return; authLoading = true; try { const config = await (await fetch('/api/config')).json(); if(!config.publishableKey || !config.clerkDomain) return; state.configured = true; const script = document.createElement('script'); script.async = true; script.crossOrigin = 'anonymous'; script.dataset.clerkPublishableKey = config.publishableKey; script.src = `https://${config.clerkDomain}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`; await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.appendChild(script)}); await window.Clerk.load({appearance:{variables:{colorPrimary:'#003b19', colorText:'#003b19', colorBackground:'#ffffff', colorInputBackground:'#ffffff', borderRadius:'0.75rem'}}}); state.clerk=window.Clerk; async function update() { const previous = state.user; state.user = state.clerk.user?.id || 'guest'; if(state.clerk.user) localStorage.setItem('mm-user',state.user); else localStorage.removeItem('mm-user'); $('#signIn').textContent = state.clerk.user ? '↗  Account & sign out' : '↗  Sign in to sync'; $('#signIn').textContent = state.clerk.user ? 'Edit profile' : 'Sign in to sync'; $('#signOut').hidden = !state.clerk.user; const name = state.clerk.user?.fullName || state.clerk.user?.username || state.clerk.user?.primaryEmailAddress?.emailAddress; $('#accountShortcut').textContent = name ? name.trim().charAt(0).toUpperCase() : '?'; $('#accountShortcut').setAttribute('aria-label', name ? `Edit profile for ${name}` : 'Account'); const accountPreferences = state.clerk.user?.unsafeMetadata?.moneyPreferences;
   const preferences = validPreferences(accountPreferences) ? accountPreferences : cachedPreferences(state.user);
   if (validPreferences(accountPreferences)) localStorage.setItem(preferenceKey(state.user), JSON.stringify(accountPreferences));
   applyPreferences(preferences); await render();
   if (state.clerk.user && !validPreferences(preferences) && !state.setupSaving && state.setupPromptedFor !== state.user) { state.setupPromptedFor = state.user; openSetup(); }
   if (previous !== state.user) { if ($('#entryDialog').open) $('#entryDialog').close(); if ($('#detailDialog').open) $('#detailDialog').close(); state.editing = null; detailId = null; }
   if (previous !== state.user && !state.clerk.user) { state.setupPromptedFor = null; if ($('#setupDialog').open) $('#setupDialog').close(); }
-  sync(); } state.clerk.addListener(update); await update(); } catch(e) { console.warn('Authentication unavailable:', e.message); } }
-$('#signOut').onclick = async () => { try { await state.clerk.signOut(); } catch (error) { toast('Could not sign out. Please check your connection and try again.'); } };
-$('#signIn').onclick = $('#accountShortcut').onclick = () => { if(!state.clerk) { toast(state.configured ? 'Sign-in is unavailable offline.' : 'Sign-in needs Clerk configuration.'); return; } state.clerk.user ? state.clerk.openUserProfile() : state.clerk.openSignIn(); };
-window.addEventListener('online', () => {status();sync();}); window.addEventListener('offline',status); setInterval(sync, 60000); if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(console.error); applyPreferences(cachedPreferences(state.user)); await render(); setupAuth();
+  if ($('#accountDialog').open) updateAccount(); sync(); } state.clerk.addListener(update); await update(); } catch(e) { console.warn('Authentication unavailable:', e.message); } finally { authLoading = false; } }
+function updateAccount() {
+  const user = state.clerk?.user;
+  const name = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || (state.user !== 'guest' ? 'Account on this device' : 'Your account');
+  $('#accountName').textContent = name;
+  $('#accountEmail').textContent = user?.primaryEmailAddress?.emailAddress || '';
+  $('#accountInitial').textContent = user ? name.trim().charAt(0).toUpperCase() : '?';
+  const offline = !navigator.onLine;
+  $('#accountStatus').textContent = offline ? 'Offline' : user ? (state.syncing ? 'Syncing' : 'Connected') : 'Account unavailable';
+  $('#accountStatusDetail').textContent = offline ? 'Your transactions remain available on this device.' : user ? 'Your transactions are saved on this device and sync when connected.' : 'Connect to access your account.';
+  $('#accountProfile').disabled = !user || offline;
+  $('#accountSignOut').hidden = !user;
+  $('#accountSignOut').disabled = offline;
+}
+function openAccount() {
+  if (!state.clerk?.user && state.user === 'guest') {
+    if (!state.clerk) { toast(navigator.onLine ? (state.configured ? 'Sign-in is unavailable. Please try again.' : 'Sign-in needs Clerk configuration.') : 'Sign-in is unavailable offline.'); return; }
+    state.clerk.openSignIn(); return;
+  }
+  updateAccount(); if (!$('#accountDialog').open) $('#accountDialog').showModal();
+}
+async function signOut() { try { if (!state.clerk?.user || !navigator.onLine) throw new Error('Unavailable'); await state.clerk.signOut(); if ($('#accountDialog').open) $('#accountDialog').close(); } catch (error) { toast('Could not sign out. Please check your connection and try again.'); } }
+$('#closeAccount').onclick = () => $('#accountDialog').close();
+$('#accountProfile').onclick = () => { if (state.clerk?.user && navigator.onLine) { $('#accountDialog').close(); state.clerk.openUserProfile(); } };
+$('#accountSettings').onclick = () => { $('#accountDialog').close(); openSetup(); };
+$('#accountSignOut').onclick = $('#signOut').onclick = signOut;
+$('#signIn').onclick = $('#accountShortcut').onclick = openAccount;
+window.addEventListener('online', () => {status(); if ($('#accountDialog').open) updateAccount(); if (!state.clerk) setupAuth(); else sync();}); window.addEventListener('offline', () => {status(); if ($('#accountDialog').open) updateAccount();}); setInterval(sync, 60000); if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(console.error); applyPreferences(cachedPreferences(state.user)); await render(); setupAuth();

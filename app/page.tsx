@@ -136,6 +136,14 @@ export default function Home() {
 <a href="#activity"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Activity</a>
 </nav>
 </div>
+<dialog id="accountDialog" aria-labelledby="accountTitle">
+<div className="account-panel">
+<div className="modal-head"><div><p className="eyebrow">YOUR SPACE</p><h3 id="accountTitle">Your account<span className="accent">.</span></h3></div><button type="button" className="close" id="closeAccount" aria-label="Close account">&times;</button></div>
+<div className="account-identity"><div className="account-avatar" id="accountInitial" aria-hidden="true">?</div><div><strong id="accountName">Your account</strong><p id="accountEmail"></p></div></div>
+<div className="account-connection"><span className="account-connection-dot" aria-hidden="true"></span><div><strong id="accountStatus">Checking connection</strong><p id="accountStatusDetail"></p></div></div>
+<div className="account-actions"><button type="button" id="accountProfile"><span><strong>Manage account</strong><small>Profile, security and active sessions</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountSettings"><span><strong>Money settings</strong><small>Country and currency</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSignOut" className="account-sign-out">Sign out</button></div>
+</div>
+</dialog>
 <dialog id="entryDialog">
 <form id="entryForm">
 <div className="modal-head">
