@@ -6,7 +6,7 @@ export default function Home() {
 <div className="app">
 <aside className="sidebar">
 <a className="brand" href="/">
-<span className="brand-icon">✳</span>
+<img className="brand-icon" src="/logo.png" alt="" width="40" height="40" />
 <span>my money<span className="brand-dot">.</span>
 </span>
 </a>
@@ -31,13 +31,14 @@ export default function Home() {
 <main>
 <header>
 <div className="mobile-brand">
-<span className="brand-icon">✳</span> my money<span className="brand-dot">.</span>
+<img className="brand-icon" src="/logo.png" alt="" width="40" height="40" /> my money<span className="brand-dot">.</span>
 </div>
 <div className="header-right">
 <span className="sync-status" id="syncStatus">
 <i>
 </i> Checking connection</span>
 <button className="settings-button" id="openSettings" type="button">Settings</button>
+<button className="sign-out-button" id="signOut" type="button" hidden>Sign out</button>
 <button className="avatar" id="accountShortcut" aria-label="Account">☺</button>
 </div>
 </header>

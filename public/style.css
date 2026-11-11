@@ -9,3 +9,9 @@
 
 .choice-picker{position:relative;margin-top:8px}.choice-picker summary{list-style:none;cursor:pointer;border:1px solid #e6ece3;border-radius:9px;background:white;padding:13px;color:#2f4d3b;font-size:14px;font-weight:400}.choice-picker summary::-webkit-details-marker{display:none}.choice-picker summary::after{content:"?";float:right;color:#718577}.choice-picker summary:focus-visible{outline:3px solid #91b93e;outline-offset:2px}.choice-menu{position:absolute;z-index:3;top:calc(100% + 4px);left:0;right:0;background:white;border:1px solid #dfe8dc;border-radius:10px;padding:8px;box-shadow:0 12px 30px #102d1f26}.choice-menu input,.choice-menu select{margin:0;width:100%;font-size:14px}.choice-menu input{margin-bottom:6px}.choice-menu select{border:0;padding:0;min-height:0}.choice-menu option{padding:9px;border-radius:5px}.choice-menu option:checked{background:#eaf5e5;color:#244e3a}@media(max-width:800px){.choice-picker summary{min-height:48px;font-size:16px}.choice-menu input,.choice-menu select{font-size:16px}}
 @media(max-width:800px){.choice-menu{position:static;margin-top:4px;box-shadow:none}.choice-menu select{max-width:100%}}
+
+/* Official My Money mark */
+.brand-icon{display:block;width:40px;height:40px;border-radius:0;background:transparent;object-fit:contain;flex:none}
+.brand-dot,.accent{color:#70b600}
+
+.transaction .value.negative,.detail-amount.negative{color:#a43832}.sign-out-button{border:1px solid #e6ece2;background:#fff;border-radius:8px;padding:9px 12px;color:#70413d;font-size:12px;font-weight:700}.sign-out-button[hidden]{display:none}@media(max-width:480px){.header-right{gap:8px}.sign-out-button{padding:8px;font-size:11px}}
