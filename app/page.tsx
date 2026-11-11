@@ -53,10 +53,6 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <button className="primary desktop-add" data-open="">
 <span>＋</span> Add transaction</button>
 </section>
-<div className="money-shortcuts" aria-label="Money shortcuts">
-<button type="button" data-new-wallet=""><span aria-hidden="true">＋</span><span><strong>Add account</strong><small>Bank, mobile money or cash</small></span></button>
-<button type="button" data-import-messages=""><span aria-hidden="true">↙</span><span><strong>Paste a message</strong><small>Review it, then save</small></span></button>
-</div>
 <div id="settingsReminder" className="settings-reminder" hidden><div><strong>Make your money feel local</strong><p>Set your country and currency so amounts are shown correctly.</p></div><button type="button" id="reminderSettings">Set country &amp; currency</button></div>
 <section className="balance-card">
 <div className="balance-copy">
@@ -162,6 +158,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <button type="button" className="close" id="closeDialog" aria-label="Close">×</button>
 </div>
 <p className="modal-sub">Keep track of the little things. They add up.</p>
+<button type="button" className="entry-import" id="entryImport" data-import-messages="">Paste a message <span>Review and save a bank or mobile money message</span></button>
 <div className="type-picker"><label><input type="radio" name="type" value="transfer"/><span>Move Money</span></label>
 <label>
 <input type="radio" name="type" value="expense" defaultChecked />

@@ -22,6 +22,6 @@
 
 - Keep the current sync SQL migration self-contained for SQL Editor users: create missing private schema/tables idempotently before compiling the RPC, preserve existing rows, and apply setup plus function replacement atomically.
 
-- Keep Add account prominent on the overview and available inside transaction entry without losing the draft. Account setup starts with name, type and starting balance; advanced controls stay secondary.
+- Keep the homepage uncluttered: show each amount summary once, with account details collapsed and detailed reports on Activity. Do not show Add account or Paste a message shortcuts on the homepage; keep both inside the existing Add transaction flow, accessible from the bottom Add button. Adding an account must preserve the transaction draft. Account setup starts with name, type and starting balance; advanced controls stay secondary.
 - Message import must make direct pasting obvious, with a clipboard button and manual-paste fallback, and require review before saving. Keep file import available.
 - New transaction times are optional and default to the current local time, including when left blank. Preserve times extracted from messages and existing records; identify a missing message time as a current-time default during review.

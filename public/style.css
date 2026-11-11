@@ -39,11 +39,6 @@
 .finance-section{margin:24px 0 32px}.finance-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.finance-actions button,.report-grid button{border:1px solid #cbd9cf;border-radius:10px;padding:9px 13px;background:#f3f8f1;color:#003b19;cursor:pointer}.finance-actions .primary{background:#003b19;color:#d4f96a}.wallet-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:20px}.wallet{padding:20px;background:#fff;border:1px solid #dce5dc;border-radius:16px}.wallet h4{margin:8px 0;overflow-wrap:anywhere}.wallet>strong{font-size:24px;color:#003b19}.wallet small{color:#617467}.wallet.archived{background:#f1f3ef}.report-filters{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.report-filters label{display:grid;gap:6px;font-size:12px;min-width:130px;flex:1}.report-filters select,.report-filters input{width:100%;min-width:0;padding:10px;border:1px solid #cbd9cf;border-radius:8px;background:white}.report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px}.report-grid>div,.report-grid>button{padding:16px;background:#eef4e9;border-radius:12px;font-size:12px;text-align:left}.report-grid strong{display:block;font-size:20px;color:#003b19;margin-top:7px}.review-note{padding:14px;border-radius:10px;background:#f3f7dc}.field textarea{width:100%;padding:12px;border:1px solid #cbd9cf;border-radius:10px;font:inherit}dialog{max-height:90dvh;overflow:auto}dialog p{line-height:1.6}dialog details{margin:16px 0}dialog [hidden]{display:none!important}.type-picker{grid-template-columns:repeat(3,1fr)}.type-picker span{font-size:13px}.report-grid small{font-size:10px}@media(max-width:600px){.finance-section .section-heading{display:block}.wallet-grid{grid-template-columns:1fr}.report-grid{grid-template-columns:1fr 1fr}.finance-actions button{font-size:12px}.report-filters label{min-width:42%}}
 
 /* Clear starting points and compact money forms */
-.money-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 22px}
-.money-shortcuts button{display:flex;align-items:center;gap:12px;padding:17px 20px;text-align:left;border:1px solid #dce7d8;border-radius:13px;background:#fff;color:var(--brand-green)}
-.money-shortcuts button:hover{border-color:#8eaf54;background:#f5f9ed}
-.money-shortcuts button>span:first-child{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;background:#edf5d9;font-size:23px}
-.money-shortcuts strong,.money-shortcuts small{display:block}.money-shortcuts strong{font-size:14px}.money-shortcuts small{margin-top:4px;font-size:12px;color:#61786a}
 .finance-section>.section-heading{align-items:center;gap:20px;flex-wrap:wrap}.finance-section>.section-heading .finance-actions{margin:0}.finance-actions button{min-height:44px;font-weight:600}
 .account-empty{padding:24px;border:1px dashed #9ab779;border-radius:16px;background:#f3f8e8}.account-empty strong{font-size:17px}.account-empty p{font-size:13px;color:#536e5b;margin:8px 0 18px;line-height:1.5}
 .wallet .form-hint{text-align:left;line-height:1.7;color:#61786a}
@@ -57,5 +52,16 @@
 /* Generated finance dialogs need the same spacing as the main forms. */
 dialog[data-finance]{padding:28px}dialog[data-finance] form{padding:0}dialog[data-finance] .modal-head{align-items:center;gap:12px;margin-bottom:12px}dialog[data-finance] .modal-head h3{margin:0;line-height:1.3}dialog[data-finance] .close{flex:none}dialog[data-finance] .modal-sub{color:#61786a}dialog[data-finance] .form-hint{color:#61786a}.primary:disabled{opacity:.55;cursor:wait}
 @media(max-width:800px){.message-input{font-size:16px}.type-picker span{padding:12px 5px;font-size:12px}.finance-section>.section-heading .finance-actions{margin-top:14px}}
-@media(max-width:480px){.money-shortcuts{gap:8px}.money-shortcuts button{padding:13px 10px;gap:8px}.money-shortcuts button>span:first-child{width:28px;height:28px;font-size:20px}.money-shortcuts strong{font-size:12px}.money-shortcuts small{font-size:11px;line-height:1.4}.finance-section>.section-heading .finance-actions{display:grid;grid-template-columns:1fr 1fr}.finance-section>.section-heading .finance-actions button:last-child{grid-column:1/-1}.paste-heading{flex-wrap:wrap;gap:0}dialog[data-finance]{padding:22px}.field input,.field select{min-width:0}.form-row>label{min-width:0}}
+@media(max-width:480px){.paste-heading{flex-wrap:wrap;gap:0}dialog[data-finance]{padding:22px}.field input,.field select{min-width:0}.form-row>label{min-width:0}}
 #entryExtraDetails{padding:13px 14px;border:1px solid #e1eade;border-radius:10px}#entryExtraDetails summary{cursor:pointer;font-size:12px;font-weight:700;color:#315641}#entryExtraDetails .field:last-child{margin-bottom:2px}
+
+/* Keep the overview quiet; creation tools live in the Add form. */
+.account-overview{margin-top:28px;border:1px solid #dce5dc;border-radius:13px;background:#fff}
+.account-overview>summary{padding:18px 20px;cursor:pointer;font-size:14px;font-weight:700;color:#003b19}
+.account-overview>summary span{margin-left:10px;font-size:12px;font-weight:400;color:#61786a}
+.account-overview>.finance-section{margin:0;padding:4px 20px 20px}
+.account-overview .section-heading>div:first-child{display:none}
+.account-overview .section-heading{justify-content:flex-end;margin-bottom:0}
+.entry-import{display:block;width:100%;padding:14px 16px;margin:20px 0 0;border:1px solid #dce7d8;border-radius:10px;background:#f3f8e8;color:#003b19;text-align:left;font-size:13px;font-weight:700}
+.entry-import span{display:block;margin-top:4px;font-size:12px;line-height:1.5;font-weight:400;color:#536e5b}
+.entry-import:hover{border-color:#8eaf54}
