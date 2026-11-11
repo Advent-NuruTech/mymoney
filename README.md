@@ -37,3 +37,16 @@ Sync uses server-issued versions, per-user cursors, idempotent operations, and r
 
 The sync history and idempotency records are currently retained indefinitely. This avoids losing changes for long-offline devices but requires storage monitoring and a future retention/full-resync policy as usage grows. Offline data stored only on a device can be lost if browser storage is cleared. Amounts are currently displayed in USD.
 
+
+
+## Multi-account ledger
+
+Apply `supabase/migrations/202611110001_multi_account.sql` **after** the original sync migration and **before** releasing the new client. It extends the existing per-user, versioned, idempotent RPC to retain account, transfer, category, reconciliation and audit records. No existing financial records are rewritten. This migration has not been applied automatically.
+
+Existing transactions appear under **Unassigned** until the user assigns an account. Opening balances precede recorded history; archived accounts stay in the combined total. A transfer is one atomic IndexedDB record. Its fee appears as a linked Transaction Charges expense row, with exactly one deduction from the source. Reconciliation confirmations preserve their calculated and actual balances; explicit adjustments never count as earnings or spending. Edit and deletion snapshots are retained as separate audit records.
+
+Message import runs entirely offline with review before saving. Paste paragraphs or upload a text file / JSON array (strings or objects with `body`, `message`, or `text`). Common M-PESA, Airtel and bank wording is recognized; unsupported wording must be entered manually. Missing dates and ambiguous accounts require selection. No fee schedule is assumed. Messages on both sides of an existing transfer are suggested for explicit linking; conflicting fees require correcting the parent transfer first. A share target is registered for browsers supporting installed PWA sharing; paste/file import remains available elsewhere. There is no SMS inbox permission.
+
+Use a single chosen currency for all accounts; changing the existing currency preference changes labels, not values. Reports support account, category, group, date range and daily/weekly/monthly/yearly periods. Review reminders appear in-app and do not request notification permission.
+
+Validation: `node --experimental-strip-types --test tests/*.test.js`, `npm run build`, then `node --experimental-strip-types --test server.test.js`. Real browser offline/share-target and two-device sync acceptance checks remain necessary before production release.

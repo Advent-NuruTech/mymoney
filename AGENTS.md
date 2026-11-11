@@ -15,3 +15,7 @@
 - Keep Settings and Sign out inside the profile account panel rather than in the header, including on mobile.
 
 - Keep a dedicated, searchable and paginated activity page for large transaction histories, with recent activity on the overview.
+
+- Money In, Money Out and Move Money are distinct ledger groups. Transfers are one atomic record with source, destination and confirmed fee; fees count once in expenses and source balance. Never assume cash fees.
+- Preserve legacy records under Unassigned until explicitly assigned. Archived accounts remain in combined balances. Reconciliation never silently changes balances; explicit adjustments are excluded from income and spending.
+- Message extraction and review run offline; no SMS inbox permissions. Account/category/reconciliation records use the existing versioned sync transport; apply the multi-account migration before deploying this client.

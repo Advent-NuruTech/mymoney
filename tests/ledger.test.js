@@ -1,0 +1,28 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {balance,totals,reportTotals,activityRows,parseMessage,duplicate,transferMatches,needsReview,cents,accounts} from '../public/ledger.js';
+const wallets=[{id:'m',type:'account',description:'M-PESA',kind:'mpesa',opening:1000000},{id:'b',type:'account',description:'Equity',kind:'bank',opening:0}];
+const move={id:'t',type:'transfer',accountId:'m',toAccountId:'b',cents:500000,fee:3500,date:'2026-11-11',category:'Savings'};
+test('transfer moves principal once and charges only the source',()=>{const r=[...wallets,move];assert.equal(balance(r,'m'),496500);assert.equal(balance(r,'b'),500000);assert.equal(accounts(r).reduce((s,a)=>s+balance(r,a.id),0),996500);assert.deepEqual(totals(r),{income:0,expense:3500,transfer:500000,fees:3500,review:0});});
+test('cash transfer preserves combined money',()=>{const r=[...wallets,{...move,fee:0}];assert.equal(balance(r,'m')+balance(r,'b'),1000000);assert.equal(totals(r).expense,0);});
+test('editing and deleting transfer recalculates both sides',()=>{assert.equal(balance([...wallets,{...move,cents:200000}],'b'),200000);const r=[...wallets,{...move,deleted:true}];assert.equal(balance(r,'m'),1000000);assert.equal(balance(r,'b'),0);});
+test('income fees, expenses and adjustments have independent semantics',()=>{const r=[...wallets,{type:'income',accountId:'m',cents:10000,fee:100,date:'2026-11-11'},{type:'expense',accountId:'m',cents:2000,fee:20,date:'2026-11-11'},{type:'adjustment',accountId:'m',cents:-500,date:'2026-11-11'}];assert.equal(balance(r,'m'),1007380);assert.equal(totals(r).expense,2120);assert.equal(totals(r).income,10000);});
+test('legacy entries remain in unassigned and archived balances stay included',()=>{assert.equal(balance([{type:'income',cents:1234,date:'2020-01-01'}],'unassigned'),1234);assert.equal(balance([{...wallets[0],archived:true}],'m'),1000000);});
+test('extract M-PESA amount, actual fee, reference, date, time and balance offline',()=>{const x=parseMessage('ABC1234567 Confirmed. Ksh5,000.00 sent to JANE on 11/11/26 at 2:30 PM. New M-PESA balance is Ksh9,965.00. Transaction cost, Ksh35.00.',wallets);assert.equal(x.cents,500000);assert.equal(x.fee,3500);assert.equal(x.reference,'ABC1234567');assert.equal(x.date,'2026-11-11');assert.equal(x.time,'14:30');assert.equal(x.reportedBalance,996500);assert.equal(x.accountId,'m');});
+test('explicit fee is extracted',()=>{const x=parseMessage('ABC1234567 Confirmed. KES 5,000 sent to Jane. Transaction cost: KES 35. New M-PESA balance is KES 9,965.',wallets);assert.equal(x.fee,3500);assert.equal(x.cents,500000);});
+test('total deduction is not charged twice',()=>{const x=parseMessage('Confirmed total deduction: KES 5,035. Transaction cost: KES 35.');assert.equal(x.cents,500000);assert.equal(x.fee,3500);});
+test('unknown fees and dates stay unknown and unrelated messages are ignored',()=>{const x=parseMessage('Received KES 2000 from Jane.');assert.equal(x.fee,0);assert.equal(x.date,'');assert.equal(x.review,true);assert.equal(parseMessage('Win KES 10000 today!'),null);});
+test('Airtel incoming and bank debit classification',()=>{assert.equal(parseMessage('Airtel Money: Received KES 500 from John on 11/11/2026.').type,'income');assert.equal(parseMessage('Account debited KES 500 on 2026-11-11. Reference: BANK1234').type,'expense');});
+test('ambiguous accounts are never selected automatically',()=>{assert.equal(parseMessage('ABC1234567 Confirmed. KES 50 sent to Jane. New M-PESA balance is KES 100.',[...wallets,{...wallets[0],id:'m2'}]).accountId,'');});
+test('references and sources prevent duplicates while amounts alone do not',()=>{const x={id:'a',type:'expense',reference:'ABC123',provider:'mpesa',source:'one',cents:100};assert.ok(duplicate({...x,id:'b'},[x]));assert.equal(duplicate({...x,id:'b',reference:'DEF123',source:'two'},[x]),undefined);assert.equal(duplicate(x,[x]),undefined);});
+test('opposite-side transfer messages require explicit matching',()=>{assert.equal(transferMatches({accountId:'b',cents:500000,date:'2026-11-11'},[move]).length,1);assert.equal(transferMatches({accountId:'b',cents:500001,date:'2026-11-11'},[move]).length,0);});
+test('precision and review requirements',()=>{assert.equal(cents('0.29'),29);assert.throws(()=>cents('1.001'));assert.throws(()=>cents('NaN'));assert.ok(needsReview({type:'expense',category:'Food'}));assert.ok(!needsReview(move));});
+test('historical reconciliation excludes later activity',()=>{assert.equal(balance([...wallets,move],'m','2026-11-10T23:59'),1000000);});
+
+test('linked messages stay duplicate protected',()=>{assert.ok(duplicate({source:'other side'},[{type:'transfer',linkedMessages:[{source:'other side'}]}]));});
+
+test('pending imports without IDs still deduplicate',()=>{assert.ok(duplicate({reference:'ABC',provider:'mpesa'},[{type:'expense',reference:'ABC',provider:'mpesa'}]));});
+test('charge report excludes transfer principal and destination never inherits source fee',()=>{assert.equal(reportTotals([move],{category:'Transaction Charges'}).expense,3500);assert.equal(reportTotals([move],{category:'Transaction Charges'}).transfer,0);assert.equal(reportTotals([move],{account:'b'}).fees,0);assert.equal(reportTotals([move],{account:'m'}).fees,3500);});
+
+test('expense group includes transfer fees without the transferred principal',()=>{assert.equal(reportTotals([move],{group:'expense'}).expense,3500);assert.equal(reportTotals([move],{group:'expense'}).transfer,0);});
+test('activity charge rows link to the original transaction',()=>{const rows=activityRows([move]);assert.equal(rows.length,2);assert.equal(rows[1].parentId,'t');assert.equal(rows[1].cents,3500);assert.equal(rows[1].category,'Transaction Charges');});

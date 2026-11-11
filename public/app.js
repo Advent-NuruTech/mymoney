@@ -1,3 +1,4 @@
+import { accounts, balance, totals, reportTotals, activityRows, groups, needsReview, duplicate, transferMatches, parseMessage, cents, categories, UNASSIGNED } from '/ledger.js';
 const $ = s => document.querySelector(s);
 let installPrompt = null;
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; });
@@ -7,24 +8,31 @@ const historyPage = document.querySelector('.app').dataset.historyPage === 'true
 const state = { entries: [], filter: 'all', user: localStorage.getItem('mm-user') || 'guest', clerk: null, syncing: false, configured: false, query: '', page: 1, editing: null, preferences: null, setupSaving: false, setupPromptedFor: null };
 const db = await new Promise((resolve, reject) => { const request = indexedDB.open('my-money', 3); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'id' }); const entries = request.transaction.objectStore('entries'); if (!entries.indexNames.contains('owner')) entries.createIndex('owner', 'owner'); if (!request.result.objectStoreNames.contains('metadata')) request.result.createObjectStore('metadata'); }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
 function allEntries() { return new Promise((resolve, reject) => { const req = db.transaction('entries').objectStore('entries').index('owner').getAll(state.user); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
-function put(entry) { return new Promise((resolve, reject) => { const tx = db.transaction('entries', 'readwrite'); tx.objectStore('entries').put(entry); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); }
+function put(entry) {
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction('entries','readwrite'),store=tx.objectStore('entries');
+  const request=store.get(entry.id);
+  request.onsuccess=()=>{const old=request.result;if(old){const now=new Date().toISOString();store.put({id:crypto.randomUUID(),owner:entry.owner,type:'audit',parentId:entry.id,cents:0,category:'',description:old.description,date:now.slice(0,10),createdAt:now,deleted:false,before:entryForServer(old),dirty:true});}store.put(entry);};
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+ });
+}
 const money = cents => new Intl.NumberFormat(undefined, { style: 'currency', currency: state.preferences?.currency || 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function status() { const el = $('#syncStatus'); el.classList.toggle('offline', !navigator.onLine); el.innerHTML = `<i></i> ${!navigator.onLine ? 'Offline · saved on device' : state.syncing ? 'Syncing…' : state.clerk?.user ? 'Connected · sync on' : 'Saved on this device'}`; }
 async function render(refresh = false) {
-  if (refresh || state.loadedOwner !== state.user) { const owner = state.user; const entries = await allEntries(); if (owner !== state.user) return; state.entries = entries.filter(x => !x.deleted).sort((a,b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)); state.loadedOwner = owner; }
-  const income = state.entries.filter(x => x.type === 'income').reduce((a,x) => a+x.cents,0);
-  const expenses = state.entries.filter(x => x.type === 'expense').reduce((a,x) => a+x.cents,0);
-  $('#balance').textContent = money(income-expenses); $('#income').textContent = money(income); $('#expenses').textContent = money(expenses);
+  if (refresh || state.loadedOwner !== state.user) { const owner = state.user; const entries = await allEntries(); if (owner !== state.user) return; state.records = entries; state.entries = entries.filter(x => !x.deleted && groups.includes(x.type)).sort((a,b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)); state.loadedOwner = owner; }
+  const summary = reportTotals(state.entries,{...financialFilters,group:state.filter}); const income = summary.income;
+  const expenses = summary.expense;
+  $('#balance').textContent = money(accounts(state.records).reduce((sum,a) => sum + balance(state.records,a.id),0)); $('#income').textContent = money(income); $('#expenses').textContent = money(expenses);
   $('#entryCount').textContent = `${state.entries.length.toLocaleString()} ${state.entries.length === 1 ? 'entry' : 'entries'}`;
   const query = state.query.toLocaleLowerCase();
-  const items = state.entries.filter(x => (state.filter === 'all' || x.type === state.filter) && (!query || `${x.description} ${x.category} ${x.date}`.toLocaleLowerCase().includes(query)));
+  const items = activityRows(state.entries).filter(x => (state.filter === 'all' || x.type === state.filter || (state.filter === 'review' && needsReview(x))) && matchesFilters(x) && (!query || `${x.description} ${x.category} ${x.date}`.toLocaleLowerCase().includes(query)));
   const pageSize = historyPage ? 50 : 5, pages = Math.max(1, Math.ceil(items.length / pageSize)); state.page = Math.min(state.page, pages);
   const start = (state.page - 1) * pageSize;
   $('#resultsCount').textContent = items.length ? `Showing ${start + 1}-${Math.min(start + pageSize, items.length)} of ${items.length.toLocaleString()} transactions` : 'No transactions found';
-  $('#transactions').innerHTML = items.length ? items.slice(start, start + pageSize).map(x => `<button type="button" class="transaction" data-detail="${escapeHtml(x.id)}" aria-label="View details for ${escapeHtml(x.description)}"><div class="stat-icon ${x.type === 'income' ? 'income-icon' : 'expense-icon'}">${x.type === 'income' ? '&#8601;' : '&#8599;'}</div><div class="details"><strong>${escapeHtml(x.description)}</strong><small>${escapeHtml(x.category)} &middot; ${escapeHtml(x.date)}</small></div><span class="value ${x.type === 'income' ? 'positive' : 'negative'}">${x.type === 'income' ? '+' : '&minus;'}${money(x.cents)}</span><span class="transaction-chevron" aria-hidden="true">&#8250;</span></button>`).join('') : `<div class="empty"><div class="empty-icon">&#10035;</div><strong>${state.entries.length ? 'No matching transactions' : 'Your story starts here'}</strong><p>${state.entries.length ? 'Try another search or filter.' : 'Add your first transaction and see the big picture come together.'}</p>${state.entries.length ? '' : '<button data-open>+ &nbsp; Add a transaction</button>'}</div>`;
+  $('#transactions').innerHTML = items.length ? items.slice(start, start + pageSize).map(x => `<button type="button" class="transaction" data-detail="${escapeHtml(x.parentId||x.id)}" aria-label="View details for ${escapeHtml(x.description)}"><div class="stat-icon ${x.type === 'income' ? 'income-icon' : 'expense-icon'}">${x.type === 'income' ? '&#8601;' : '&#8599;'}</div><div class="details"><strong>${escapeHtml(x.description)}</strong><small>${escapeHtml(x.category||'Needs Review')} &middot; ${escapeHtml(nameOf(x.accountId))} &middot; ${escapeHtml(x.date)}${x.fee?' ? Charges '+money(x.fee):''}</small></div><span class="value ${x.type === 'income' ? 'positive' : 'negative'}">${x.type === 'transfer' ? '&#8644;' : x.type === 'income' ? '+' : '&minus;'}${money(x.cents)}</span><span class="transaction-chevron" aria-hidden="true">&#8250;</span></button>`).join('') : `<div class="empty"><div class="empty-icon">&#10035;</div><strong>${state.entries.length ? 'No matching transactions' : 'Your story starts here'}</strong><p>${state.entries.length ? 'Try another search or filter.' : 'Add your first transaction and see the big picture come together.'}</p>${state.entries.length ? '' : '<button data-open>+ &nbsp; Add a transaction</button>'}</div>`;
   $('#pagination').innerHTML = historyPage && pages > 1 ? `<button data-page="${state.page-1}" ${state.page === 1 ? 'disabled' : ''}>Previous</button><label>Page <input id="pageJump" type="number" min="1" max="${pages}" value="${state.page}" aria-label="Page number"> of ${pages}</label><button data-page="${state.page+1}" ${state.page === pages ? 'disabled' : ''}>Next</button>` : '';
-  status();
+  renderFinance(summary); status();
 }
 function openEntry(entry = null) {
   const form = $('#entryForm'); form.reset(); state.editing = entry?.id || null;
@@ -32,7 +40,7 @@ function openEntry(entry = null) {
   form.querySelector('[name=date]').value = entry?.date || today();
   if (entry) { form.elements.type.value = entry.type; form.elements.amount.value = (entry.cents / 100).toFixed(2); form.elements.description.value = entry.description; if (![...form.elements.category.options].some(option => option.value === entry.category)) form.elements.category.add(new Option(entry.category, entry.category)); form.elements.category.value = entry.category; }
   form.querySelector('.save-another').hidden = !!entry;
-  $('#entryDialog').showModal();
+  prepareEntry(entry); $('#entryDialog').showModal();
 }
 let detailId = null;
 function openDetail(entry) {
@@ -41,11 +49,11 @@ function openDetail(entry) {
   const date = new Date(`${entry.date}T12:00:00`);
   const formattedDate = Number.isNaN(date.getTime()) ? entry.date : new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(date);
   const created = new Date(entry.createdAt);
-  $('#detailContent').innerHTML = `<p class="detail-amount ${entry.type === 'income' ? 'positive' : 'negative'}">${entry.type === 'income' ? '+' : '&minus;'}${money(entry.cents)}</p><dl class="detail-list"><div><dt>Type</dt><dd>${entry.type === 'income' ? 'Income' : 'Expense'}</dd></div><div><dt>Category</dt><dd>${escapeHtml(entry.category)}</dd></div><div><dt>Date</dt><dd>${escapeHtml(formattedDate)}</dd></div><div><dt>Recorded</dt><dd>${Number.isNaN(created.getTime()) ? '?' : escapeHtml(new Intl.DateTimeFormat(undefined, {dateStyle:'medium', timeStyle:'short'}).format(created))}</dd></div></dl>`;
-  $('#detailDialog').showModal();
+  $('#detailContent').innerHTML = `<p class="detail-amount ${entry.type === 'income' ? 'positive' : 'negative'}">${entry.type === 'income' ? '+' : '&minus;'}${money(entry.cents)}</p><dl class="detail-list"><div><dt>Type</dt><dd>${entry.type === 'transfer' ? 'Move Money' : entry.type === 'income' ? 'Money In' : entry.type === 'adjustment' ? 'Reconciliation adjustment' : 'Money Out'}</dd></div><div><dt>Category</dt><dd>${escapeHtml(entry.category)}</dd></div><div><dt>Date</dt><dd>${escapeHtml(formattedDate)}</dd></div><div><dt>Recorded</dt><dd>${Number.isNaN(created.getTime()) ? '?' : escapeHtml(new Intl.DateTimeFormat(undefined, {dateStyle:'medium', timeStyle:'short'}).format(created))}</dd></div></dl>`;
+  detailFinance(entry); $('#detailDialog').showModal();
 }
 $('#closeDetail').onclick = () => $('#detailDialog').close();
-$('#detailEdit').onclick = () => { const entry = state.entries.find(x => x.id === detailId); if (entry) { $('#detailDialog').close(); openEntry(entry); } };
+$('#detailEdit').onclick = () => { const entry = state.entries.find(x => x.id === detailId); if (entry) { if(entry.type==='adjustment'){toast('Delete an incorrect adjustment and reconcile again to preserve its history.');return;} $('#detailDialog').close(); openEntry(entry); } };
 $('#detailDelete').onclick = async () => { const entry = state.entries.find(x => x.id === detailId); if (entry && confirm(`Delete "${entry.description}" (${money(entry.cents)})?`)) { await put({...entry, deleted:true, updatedAt:Date.now(), dirty:true}); $('#detailDialog').close(); await render(true); sync(); toast('Transaction deleted'); } };
 let toastTimer; function toast(message) { $('#toast').textContent = message; $('#toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 3000); }
 function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -60,24 +68,16 @@ document.addEventListener('click', async e => {
 $('#pagination').addEventListener('change', e => { if (e.target.id === 'pageJump') { const page = Number(e.target.value); state.page = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1; render(); } });
 $('#transactionSearch').addEventListener('input', e => { state.query = e.target.value.trim(); state.page = 1; render(); });
 $('#closeDialog').onclick = () => $('#entryDialog').close();
-$('#entryForm').onsubmit = async e => {
-  e.preventDefault(); const f = new FormData(e.target); const amount = String(f.get('amount')); const cents = Math.round(Number(amount)*100); const description=String(f.get('description')).trim();
-  if(!/^\d+(?:\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(cents) || cents <= 0 || cents > 100000000000 || !description) { toast('Enter a valid amount with up to two decimal places and a description.'); return; }
-  const existing = state.entries.find(x => x.id === state.editing);
-  await put({ ...existing, id:existing?.id || crypto.randomUUID(), owner:state.user, type:f.get('type'), cents, description, category:f.get('category'), date:f.get('date'), createdAt:existing?.createdAt || new Date().toISOString(), updatedAt:Date.now(), dirty:true, deleted:false });
-  const another = e.submitter?.value === 'yes' && !existing;
-  if (another) { e.target.elements.amount.value = ''; e.target.elements.description.value = ''; e.target.elements.amount.focus(); } else $('#entryDialog').close();
-  await render(true); toast(existing ? 'Transaction updated' : 'Transaction saved'); sync();
-};
-const entryForServer = x => ({id:x.id,type:x.type,cents:x.cents,description:x.description,category:x.category,date:x.date,createdAt:x.createdAt,deleted:x.deleted});
+$('#entryForm').onsubmit = saveFinanceEntry;
+const entryForServer = x => Object.fromEntries(Object.entries(x).filter(([key,value]) => !['owner','dirty','version','pendingOperation','updatedAt'].includes(key) && value !== undefined));
 function prepareSync(owner) { return new Promise((resolve,reject) => {
   const tx=db.transaction(['entries','metadata'],'readwrite'), entries=tx.objectStore('entries'), meta=tx.objectStore('metadata');
-  const all=entries.index('owner').getAll(owner), cursor=meta.get(`cursor:${owner}`); let operations=[];
+  const all=entries.index('owner').getAll(owner), cursor=meta.get(`cursor:${owner}`); let operations=[], bytes=100;
   all.onsuccess=()=>{ for(const x of all.result) { if(x.owner!==owner || operations.length>=100) continue;
     // Records saved by the previous app have no server version; upload them once.
     if(!x.dirty && x.version) continue;
     if(!x.pendingOperation) { x.pendingOperation={operationId:crypto.randomUUID(),baseVersion:x.version || '0',entry:entryForServer(x)}; x.dirty=true; entries.put(x); }
-    operations.push(x.pendingOperation);
+    const size=new TextEncoder().encode(JSON.stringify(x.pendingOperation)).length; if(bytes+size>240000) break; bytes+=size; operations.push(x.pendingOperation);
   }};
   tx.oncomplete=()=>resolve({cursor:cursor.result || '0',operations}); tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error);
 }); }
@@ -120,7 +120,7 @@ async function sync() {
         choices[result.operationId]={id:operation.entry.id,keep:confirm('This transaction changed on another device. Choose OK to keep this device’s version, or Cancel to use the server version.')};
       }
       await applySync(owner,data,choices);
-      if(data.changes.length<200 && request.operations.length<100 && !data.results.some(x=>x.status==='conflict')) break;
+      if(data.changes.length<200 && request.operations.length===0 && !data.results.some(x=>x.status==='conflict')) break;
     }
   } catch(e) { console.warn('Sync deferred:', e.message); toast('Sync will retry when connection is available.'); }
   finally {state.syncing=false; await render(true);}
@@ -200,7 +200,7 @@ async function setupAuth() { if (authLoading || state.clerk) return; authLoading
   if (validPreferences(accountPreferences)) localStorage.setItem(preferenceKey(state.user), JSON.stringify(accountPreferences));
   applyPreferences(preferences); await render();
   if (state.clerk.user && !validPreferences(preferences) && !state.setupSaving && state.setupPromptedFor !== state.user) { state.setupPromptedFor = state.user; openSetup(); }
-  if (previous !== state.user) { if ($('#entryDialog').open) $('#entryDialog').close(); if ($('#detailDialog').open) $('#detailDialog').close(); state.editing = null; detailId = null; }
+  if (previous !== state.user) { document.querySelectorAll('dialog[data-finance]').forEach(d => d.close()); importQueue = []; imported = null; Object.keys(financialFilters).forEach(k=>financialFilters[k]=''); if ($('#entryDialog').open) $('#entryDialog').close(); if ($('#detailDialog').open) $('#detailDialog').close(); state.editing = null; detailId = null; }
   if (previous !== state.user && !state.clerk.user) { state.setupPromptedFor = null; if ($('#setupDialog').open) $('#setupDialog').close(); }
   if ($('#accountDialog').open) updateAccount(); sync(); } state.clerk.addListener(update); await update(); } catch(e) { console.warn('Authentication unavailable:', e.message); } finally { authLoading = false; } }
 function setAccountAvatar(element, user, name) {
@@ -253,4 +253,101 @@ $('#accountInstall').onclick = async () => {
 $('#accountSettings').onclick = () => { $('#accountDialog').close(); openSetup(); };
 $('#accountSignOut').onclick = signOut;
 $('#signIn').onclick = $('#accountShortcut').onclick = openAccount;
+
+let imported = null, importQueue = [];
+const financialFilters = {account:'', category:'', from:'', to:'', period:''};
+const nameOf = id => accounts(state.records || []).find(a => a.id === (id || UNASSIGNED))?.description || 'Unknown account';
+function matchesFilters(x) {
+ const f=financialFilters;
+ return (!f.account || (x.accountId||UNASSIGNED)===f.account || x.toAccountId===f.account) && (!f.category || x.category===f.category) && (!f.from || x.date>=f.from) && (!f.to || x.date<=f.to);
+}
+function options(list,value='',blank='Select account') { return `<option value="">${blank}</option>`+list.map(a=>`<option value="${escapeHtml(a.id)}" ${a.id===value?'selected':''}>${escapeHtml(a.description)}${a.archived?' (archived)':''}</option>`).join(''); }
+function dialog(id,title,body) {
+ let d=$('#'+id); if(!d) {d=document.createElement('dialog');d.id=id;d.dataset.finance='true';document.body.append(d);}
+ d.innerHTML=`<div class="modal-head"><h3>${title}</h3><button type="button" class="close" aria-label="Close" data-close="${id}">&times;</button></div>${body}`;
+ d.showModal(); return d;
+}
+function renderFinance(summary) {
+ const wallets=accounts(state.records), cats=[...new Set([...categories,...state.entries.map(x=>x.category).filter(Boolean),...state.records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description)])];
+ $('#financePanel').innerHTML=`<section class="finance-section"><div class="section-heading"><div><p class="eyebrow">EVERY SHILLING ACCOUNTED FOR</p><h3>Where your money lives</h3></div><div class="finance-actions"><button class="primary" id="newWallet">+ Account</button><button id="importMoney">Import messages</button><button id="manageCategories">Categories</button></div></div><div class="wallet-grid">${wallets.map(a=>`<article class="wallet ${a.archived?'archived':''}"><small>${escapeHtml(a.kind)}${a.archived?' · Archived':''}</small><h4>${escapeHtml(a.description)}</h4><strong>${money(balance(state.records,a.id))}</strong><p class="form-hint">Opening ${money(a.opening||0)} ? In ${money(totals(state.entries.filter(x=>x.accountId===a.id)).income)} ? Out ${money(totals(state.entries.filter(x=>x.accountId===a.id)).expense)}</p><div class="finance-actions"><button data-wallet-history="${escapeHtml(a.id)}">History</button>${a.id===UNASSIGNED?'':`<button data-wallet="${a.id}">Edit</button><button data-reconcile="${a.id}">Reconcile</button>`}</div></article>`).join('')}</div><p class="form-hint">Archived accounts remain in your total and financial history. Unassigned records need an account.</p><div class="report-filters"><label>Account<select id="reportAccount">${options(wallets,financialFilters.account,'All accounts')}</select></label><label>Category<select id="reportCategory"><option value="">All categories</option>${cats.map(c=>`<option ${financialFilters.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></label><label>Period<select id="reportPeriod">${[['','All time'],['day','Today'],['week','This week'],['month','This month'],['year','This year']].map(([v,l])=>`<option value="${v}" ${financialFilters.period===v?'selected':''}>${l}</option>`).join('')}</select></label><label>From<input type="date" id="reportFrom" value="${financialFilters.from}"></label><label>To<input type="date" id="reportTo" value="${financialFilters.to}"></label></div><div class="report-grid"><div>Money In<strong>${money(summary.income)}</strong></div><div>Money Out <small>(includes fees)</small><strong>${money(summary.expense)}</strong></div><div>Money Moved<strong>${money(summary.transfer)}</strong></div><div>Transaction Charges<strong>${money(summary.fees)}</strong></div><button data-filter="review">Needs Review<strong>${summary.review}</strong></button></div>${summary.review?'<p class="review-note">A little detail helps: explain your uncategorized transactions when you have a moment.</p>':''}</section>`;
+ $('#newWallet').onclick=()=>editWallet(); $('#importMoney').onclick=openImport; $('#manageCategories').onclick=manageCategories;
+ for(const [id,key] of [['reportAccount','account'],['reportCategory','category'],['reportFrom','from'],['reportTo','to']]) $('#'+id).onchange=e=>{financialFilters[key]=e.target.value;state.page=1;render();};
+ $('#reportPeriod').onchange=e=>{const p=e.target.value,d=new Date();financialFilters.period=p;financialFilters.to=p?today():'';if(p==='week')d.setDate(d.getDate()-((d.getDay()+6)%7));if(p==='month')d.setDate(1);if(p==='year'){d.setMonth(0);d.setDate(1);}financialFilters.from=p?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';state.page=1;render();};
+}
+function prepareEntry(entry) {
+ const f=$('#entryForm'); imported=entry?.source?entry:null;
+ const wallets=accounts(state.records).filter(a=>!a.archived||[entry?.accountId,entry?.toAccountId].includes(a.id));
+ $('#entryAccounts').innerHTML=`<div class="form-row"><label class="field"><span id="sourceLabel">Account</span><select name="accountId" required>${options(wallets,entry?.accountId||'')}</select></label><label class="field" id="destinationField">To<select name="toAccountId">${options(wallets,entry?.toAccountId||'')}</select></label></div><label class="field" id="feeField">Actual transaction charge (optional)<input name="fee" type="number" min="0" step="0.01" value="${((entry?.fee||0)/100).toFixed(2)}"></label><div class="form-row"><label class="field">Time (optional)<input name="time" type="time" value="${entry?.time||''}"></label><label class="field">Reference (optional)<input name="reference" maxlength="40" value="${escapeHtml(entry?.reference||'')}"></label></div><p id="importContext" class="form-hint"></p>`;
+ const cat=f.elements.category; for(const c of [...categories,...state.records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description)]) if(![...cat.options].some(o=>o.value===c))cat.add(new Option(c,c));
+ if(!entry)cat.value='';
+ f.onchange=updateEntryFields; updateEntryFields();
+ f.elements.description.onblur=()=>{if(!cat.value){const previous=state.entries.find(x=>x.description.toLowerCase()===f.elements.description.value.trim().toLowerCase()&&x.category);if(previous){cat.value=previous.category;toast('Category suggested from your history. You can change it.');}}};
+}
+function updateEntryFields() {
+ const f=$('#entryForm'), move=f.elements.type.value==='transfer', a=accounts(state.records).find(x=>x.id===f.elements.accountId.value), b=accounts(state.records).find(x=>x.id===f.elements.toAccountId.value);
+ $('#sourceLabel').textContent=move?'From':'Account'; $('#destinationField').hidden=!move;f.elements.toAccountId.required=move;
+ const cash=a?.kind==='cash'&&(!move||b?.kind==='cash'); $('#feeField').hidden=cash; if(cash)f.elements.fee.value='0';
+}
+async function importId(x) {
+ const data=new TextEncoder().encode(`${state.user}:${x.provider}:${x.reference.toUpperCase()}`);
+ const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',data))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
+}
+async function saveFinanceEntry(e) {
+ e.preventDefault(); if(state.savingEntry)return;state.savingEntry=true; const f=e.target, v=f.elements;
+ try {
+  const old=state.entries.find(x=>x.id===state.editing), amount=cents(v.amount.value), fee=cents(v.fee.value||'0');
+  if(amount<=0||fee<0)throw Error('Enter a positive amount and a non-negative fee.');
+  if(!v.accountId.value)throw Error('Select the account involved.');
+  if(v.type.value==='transfer'&&(!v.toAccountId.value||v.toAccountId.value===v.accountId.value))throw Error('Choose two different accounts.');
+  const x={...old,...(imported||{}),id:old?.id||crypto.randomUUID(),owner:state.user,type:v.type.value,cents:amount,fee,accountId:v.accountId.value,toAccountId:v.type.value==='transfer'?v.toAccountId.value:'',description:v.description.value.trim()|| (v.type.value==='transfer'?'Move Money':v.category.value||'Unexplained transaction'),category:v.category.value,date:v.date.value,time:v.time.value,reference:v.reference.value.trim(),review:false,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:Date.now(),dirty:true,deleted:false};
+  if(!old && x.reference && x.provider) x.id=await importId(x);
+  if(state.user!==x.owner)throw Error('Account changed. Please reopen the transaction.');
+  if(duplicate({...x,id:old?.id},state.records))throw Error('This message or reference is already recorded.');
+  const possible=transferMatches(x,state.records);
+  if(imported&&possible.length){const match=possible[0]; if(x.fee && x.fee!==match.fee)throw Error('The fee differs from the existing transfer. Correct that transfer before linking this message.'); if(confirm(`This may be the other side of an existing transfer: ${nameOf(match.accountId)} → ${nameOf(match.toAccountId)}, ${money(match.cents)}. Link this message to that transfer?`)){await put({...match,linkedMessages:[...(match.linkedMessages||[]),{source:x.source,reference:x.reference,provider:x.provider,accountId:x.accountId,reportedBalance:x.reportedBalance}],dirty:true,updatedAt:Date.now()});$('#entryDialog').close();await render(true);sync();nextImport();return;}throw Error('Possible duplicate: review the existing transfer before importing this message.');}
+  await put(x);await render(true);sync();toast('Transaction saved');
+  if(e.submitter?.value==='yes'&&!old&&!imported)openEntry();else {$('#entryDialog').close();nextImport();}
+ }catch(error){toast(error.message);}finally{state.savingEntry=false;}
+}
+function detailFinance(x) {
+ const audit=[...(x.audit||[]),...state.records.filter(a=>a.type==='audit'&&a.parentId===x.id).map(a=>({at:a.createdAt,before:a.before}))];
+ $('#detailContent').insertAdjacentHTML('beforeend',`<dl class="detail-list"><div><dt>Account</dt><dd>${escapeHtml(nameOf(x.accountId))}</dd></div>${x.type==='transfer'?`<div><dt>To</dt><dd>${escapeHtml(nameOf(x.toAccountId))}</dd></div>`:''}<div><dt>Transaction Charges</dt><dd>${money(x.fee||0)}</dd></div><div><dt>Reference / time</dt><dd>${escapeHtml(x.reference||'—')} ${escapeHtml(x.time||'')}</dd></div>${x.reportedBalance!=null?`<div><dt>Message balance (at transaction)</dt><dd>${money(x.reportedBalance)}</dd></div>`:''}</dl>${x.source?`<details><summary>Original message</summary><p>${escapeHtml(x.source)}</p></details>`:''}<details><summary>Change history (${audit.length})</summary>${audit.map(a=>`<p>${escapeHtml(a.at)}: ${escapeHtml(a.before.description)} · ${money(a.before.cents)} · ${escapeHtml(a.before.category)}</p>`).join('')||'<p>No edits recorded.</p>'}</details>`);
+}
+async function saveRecord(values,old) {
+ const now=new Date().toISOString();await put({...old,id:old?.id||crypto.randomUUID(),owner:state.user,cents:0,category:'',date:today(),createdAt:old?.createdAt||now,deleted:false,...values,updatedAt:Date.now(),dirty:true});await render(true);sync();
+}
+function editWallet(id) {
+ const a=state.records.find(x=>x.id===id);
+ const d=dialog('walletDialog',a?'Edit account':'New account',`<form id="walletForm"><label class="field">Name<input name="name" required maxlength="100" value="${escapeHtml(a?.description||'')}"></label><label class="field">Account type<select name="kind">${[['mpesa','M-PESA'],['airtel','Airtel Money'],['bank','Bank'],['cash','Cash Wallet'],['savings','Savings'],['custom','Custom']].map(([v,l])=>`<option value="${v}" ${a?.kind===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="field">Opening balance<input name="opening" type="number" step="0.01" required value="${((a?.opening||0)/100).toFixed(2)}"></label><label class="field">Display order<input name="position" type="number" min="0" step="1" value="${a?.position||0}"></label><label><input name="archived" type="checkbox" ${a?.archived?'checked':''}> Archived</label><p class="form-hint">Opening balance is the amount held before the recorded history. Changing it changes calculated balances.</p><button class="primary save">Save account</button></form>`);
+ $('#walletForm').onsubmit=async e=>{e.preventDefault();try{const v=e.target.elements;await saveRecord({type:'account',description:v.name.value.trim(),kind:v.kind.value,opening:cents(v.opening.value),position:Number(v.position.value),archived:v.archived.checked},a);d.close();}catch(err){toast(err.message);}};
+}
+function reconcile(id) {
+ const a=accounts(state.records).find(x=>x.id===id), calculated=balance(state.records,id);
+ const checks=state.records.filter(x=>['reconciliation','adjustment'].includes(x.type)&&x.accountId===id&&!x.deleted).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+ const messages=state.entries.filter(x=>x.accountId===id&&x.reportedBalance!=null).sort((a,b)=>(b.date+(b.time||'')).localeCompare(a.date+(a.time||'')));
+ const m=messages[0], historical=m?balance(state.records,id,`${m.date}T${m.time||'00:00'}`):0;
+ const d=dialog('reconcileDialog',`Reconcile ${escapeHtml(a.description)}`,`<p>Calculated balance: <strong>${money(calculated)}</strong></p>${m?`<p>Message on ${escapeHtml(m.date)} ${escapeHtml(m.time||'')}: ${money(m.reportedBalance)}. Calculated at that time: ${money(historical)}. Difference: ${money(m.reportedBalance-historical)}. Verify the message and transaction order before using this evidence.</p>`:''}<form id="reconcileForm"><label class="field">Actual balance confirmed now<input name="actual" type="number" step="0.01" required></label><p id="reconcileDifference">Enter your confirmed balance.</p><label class="field">Notes<input name="note" maxlength="100" placeholder="Missing transaction, fee, or correction"></label><label><input name="adjust" type="checkbox"> Record the difference as an explicit reconciliation adjustment</label><p class="form-hint">Check missing transactions, duplicate entries, amounts and fees first. Adjustments are excluded from income and spending.</p><button class="primary save">Save reconciliation</button></form><h4>Reconciliation history</h4>${checks.map(c=>`<p>${escapeHtml(c.createdAt)} · Actual ${money(c.actual)} · Calculated ${money(c.calculated)} · ${c.actual===c.calculated?'Reconciled':'Needs Review'} · ${escapeHtml(c.description)}</p>`).join('')||'<p>No confirmations yet.</p>'}`);
+ $('#reconcileForm').elements.actual.oninput=e=>{try{const diff=cents(e.target.value)-calculated;$('#reconcileDifference').textContent=`Difference: ${money(diff)} · ${diff===0?'Reconciled':'Needs Review'}`;}catch{}};
+ $('#reconcileForm').onsubmit=async e=>{e.preventDefault();try{const v=e.target.elements,actual=cents(v.actual.value),diff=actual-calculated;if(v.adjust.checked&&diff&&!v.note.value.trim())throw Error('Explain the adjustment so the history stays clear.');await saveRecord({type:v.adjust.checked&&diff?'adjustment':'reconciliation',accountId:id,description:v.note.value.trim()||'Balance confirmed',actual,calculated,cents:v.adjust.checked?diff:0,category:'Reconciliation',time:new Date().toTimeString().slice(0,5)});d.close();}catch(err){toast(err.message);}};
+}
+function manageCategories() {
+ const custom=state.records.filter(x=>x.type==='category'&&!x.deleted);
+ const d=dialog('categoryDialog','Categories',`<p>Use Parent / Child for subcategories. Renaming a category preserves the original labels in transaction history.</p><form id="categoryForm"><label class="field">Category<select name="id"><option value="">New category</option>${custom.map(c=>`<option value="${c.id}">${escapeHtml(c.description)}</option>`).join('')}</select></label><label class="field">Name<input name="name" maxlength="50" required placeholder="Business / Supplies"></label><label><input name="archived" type="checkbox"> Archive category</label><button class="primary save">Save category</button></form>`);
+ $('#categoryForm').elements.id.onchange=e=>{const c=custom.find(x=>x.id===e.target.value);$('#categoryForm').elements.name.value=c?.description||'';$('#categoryForm').elements.archived.checked=!!c?.archived;};
+ $('#categoryForm').onsubmit=async e=>{e.preventDefault();const v=e.target.elements;await saveRecord({type:'category',description:v.name.value.trim(),archived:v.archived.checked},custom.find(x=>x.id===v.id.value));d.close();};
+}
+function openImport() {
+ const d=dialog('importDialog','Import messages',`<p>Paste one message per paragraph or select a text/JSON export. Everything is processed on this device. Review each recognized message before saving.</p><label class="field">Messages<textarea id="messageText" rows="8" maxlength="500000"></textarea></label><label class="field">Text or JSON file<input id="messageFile" type="file" accept=".txt,.json,text/plain,application/json"></label><p id="importSummary" role="status"></p><button id="extractMessages" class="primary save">Extract and review</button>`);
+ $('#messageFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>500000)throw Error('Choose a file smaller than 500 KB.');let text=await file.text();if(file.name.endsWith('.json')){const items=JSON.parse(text);if(!Array.isArray(items))throw Error('JSON should be an array of messages.');text=items.map(x=>typeof x==='string'?x:x.body||x.message||x.text||'').join('\n\n');}$('#messageText').value=text;}catch(err){$('#importSummary').textContent=err.message;}};
+ $('#extractMessages').onclick=()=>{try{const chunks=$('#messageText').value.split(/\n\s*\n|\n(?=[A-Z0-9]{6,30}\s+Confirmed)/i).filter(x=>x.trim());let skipped=0;const pending=[];for(const chunk of chunks){const x=parseMessage(chunk,accounts(state.records));if(!x||x.source.length>12000||duplicate(x,[...state.records,...pending]))skipped++;else pending.push(x);}importQueue=pending;$('#importSummary').textContent=`${pending.length} ready; ${skipped} unrelated or duplicate messages skipped.`;if(pending.length){toast(`${pending.length} messages ready; ${skipped} skipped`);d.close();nextImport();}}catch(err){$('#importSummary').textContent=err.message;}};
+}
+function nextImport() {
+ imported=null;if(!importQueue.length)return;const x=importQueue.shift();openEntry();imported=x;$('#entryForm .save-another').hidden=true;const v=$('#entryForm').elements;v.type.value=x.type;v.amount.value=(x.cents/100).toFixed(2);v.fee.value=(x.fee/100).toFixed(2);v.description.value=x.description;v.date.value=x.date;v.time.value=x.time;v.reference.value=x.reference;v.accountId.value=x.accountId;v.category.value='';updateEntryFields();$('#importContext').textContent=`Review extracted details. ${importQueue.length} more queued. ${x.feeConfirmed?'Fee extracted from message.':'No fee found; none assumed.'} ${x.reportedBalance!=null?'Message balance: '+money(x.reportedBalance):''}`;
+}
+$('#entryDialog').addEventListener('cancel',()=>{importQueue=[];imported=null;});
+$('#closeDialog').onclick=()=>{importQueue=[];imported=null;$('#entryDialog').close();};
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.close)$('#'+b.dataset.close).close();if(b.dataset.wallet)editWallet(b.dataset.wallet);if(b.dataset.reconcile)reconcile(b.dataset.reconcile);if(b.dataset.walletHistory){financialFilters.account=b.dataset.walletHistory;state.filter='all';state.page=1;render();$('#activity').scrollIntoView({behavior:'smooth'});}});
+const shared=new URLSearchParams(location.search).get('text');if(shared){openImport();$('#messageText').value=shared;history.replaceState(null,'',location.pathname);}
+
 window.addEventListener('online', () => {status(); if ($('#accountDialog').open) updateAccount(); if (!state.clerk) setupAuth(); else sync();}); window.addEventListener('offline', () => {status(); if ($('#accountDialog').open) updateAccount();}); setInterval(sync, 60000); if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(console.error); applyPreferences(cachedPreferences(state.user)); await render(); setupAuth();

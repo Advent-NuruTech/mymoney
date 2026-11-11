@@ -57,7 +57,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <section className="balance-card">
 <div className="balance-copy">
 <div className="balance-top">
-<span className="balance-label">TOTAL BALANCE</span>
+<span className="balance-label">TOTAL MONEY AVAILABLE</span>
 <span className="sparkle">✳</span>
 </div>
 <h2 id="balance">$0.00</h2>
@@ -106,6 +106,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 </article>
 </section>
 </div>
+<div id="financePanel"></div>
 <section className="activity" id="activity">
 <div className="section-heading">
 <div>
@@ -115,10 +116,10 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <p>Your money story, one entry at a time.</p>
 </div>
 {activityPage && <button className="primary desktop-add activity-add" data-open="">+ Add transaction</button>}
-<div className="filters" aria-label="Filter transactions" hidden={!activityPage}>
+<div className="filters" aria-label="Filter transactions">
 <button className="filter active" data-filter="all">All</button>
-<button className="filter" data-filter="income">Income</button>
-<button className="filter" data-filter="expense">Expenses</button>
+<button className="filter" data-filter="income">Money In</button>
+<button className="filter" data-filter="expense">Money Out</button><button className="filter" data-filter="transfer">Move Money</button><button className="filter" data-filter="review">Needs Review</button>
 </div>
 </div>
 <div className="history-tools" hidden={!activityPage}><label className="search-field"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><span className="sr-only">Search transactions</span><input id="transactionSearch" type="search" placeholder="Search description or category" /></label><p id="resultsCount" aria-live="polite"></p></div>
@@ -157,26 +158,26 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <button type="button" className="close" id="closeDialog" aria-label="Close">×</button>
 </div>
 <p className="modal-sub">Keep track of the little things. They add up.</p>
-<div className="type-picker">
+<div className="type-picker"><label><input type="radio" name="type" value="transfer"/><span>Move Money</span></label>
 <label>
 <input type="radio" name="type" value="expense" defaultChecked />
-<span>↗ &nbsp; Expense</span>
+<span>↗ &nbsp; Money Out</span>
 </label>
 <label>
 <input type="radio" name="type" value="income" />
-<span>↙ &nbsp; Income</span>
+<span>↙ &nbsp; Money In</span>
 </label>
 </div>
-<label className="field">Amount <div className="amount-input">
+<div id="entryAccounts"></div><label className="field">Amount <div className="amount-input">
 <span id="amountCurrency">USD</span>
 <input name="amount" type="number" inputMode="decimal" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required />
 </div>
 </label>
-<label className="field">What was it for?<input name="description" maxLength={100} placeholder="e.g. Morning coffee" required />
+<label className="field">What was it for?<input name="description" maxLength={100} placeholder="Optional description" />
 </label>
 <div className="form-row">
 <label className="field">Category<select name="category">
-<option>Food & drink</option>
+<option value="">Needs Review</option><option>Food & drink</option>
 <option>Shopping</option>
 <option>Transport</option>
 <option>Bills</option>
