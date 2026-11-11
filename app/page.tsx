@@ -1,9 +1,9 @@
 import Script from 'next/script';
 
-export default function Home() {
+export default function Home({ activityPage = false }: { activityPage?: boolean }) {
   return (
     <>
-<div className="app">
+<div className="app" data-history-page={activityPage ? "true" : "false"}>
 <aside className="sidebar">
 <a className="brand" href="/">
 <img className="brand-icon" src="/logo.png" alt="" width="40" height="40" />
@@ -12,9 +12,9 @@ export default function Home() {
 </a>
 <p className="side-label">YOUR SPACE</p>
 <nav>
-<a className="nav-active" href="#overview">
+<a className={!activityPage ? "nav-active" : undefined} href="/">
 <span>▦</span> Overview</a>
-<a href="#activity">
+<a className={activityPage ? "nav-active" : undefined} href="/activity">
 <span>◷</span> Transactions</a>
 </nav>
 <div className="side-bottom">
@@ -37,12 +37,11 @@ export default function Home() {
 <span className="sync-status" id="syncStatus">
 <i>
 </i> Checking connection</span>
-<button className="settings-button" id="openSettings" type="button">Settings</button>
-<button className="sign-out-button" id="signOut" type="button" hidden>Sign out</button>
 <button className="avatar" id="accountShortcut" aria-label="Account">☺</button>
 </div>
 </header>
 <div className="content" id="overview">
+<div hidden={activityPage}>
 <section className="intro">
 <div>
 <p className="eyebrow">YOUR MONEY, MADE SIMPLE <span>✳</span>
@@ -106,24 +105,27 @@ export default function Home() {
 <span className="stat-arrow">↗</span>
 </article>
 </section>
+</div>
 <section className="activity" id="activity">
 <div className="section-heading">
 <div>
 <p className="eyebrow">THE LITTLE DETAILS</p>
-<h3>Recent activity <span>✳</span>
+<h3>{activityPage ? "All activity" : "Recent activity"} <span>✳</span>
 </h3>
 <p>Your money story, one entry at a time.</p>
 </div>
-<div className="filters" aria-label="Filter transactions">
+{activityPage && <button className="primary desktop-add activity-add" data-open="">+ Add transaction</button>}
+<div className="filters" aria-label="Filter transactions" hidden={!activityPage}>
 <button className="filter active" data-filter="all">All</button>
 <button className="filter" data-filter="income">Income</button>
 <button className="filter" data-filter="expense">Expenses</button>
 </div>
 </div>
-<div className="history-tools"><label className="search-field"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><span className="sr-only">Search transactions</span><input id="transactionSearch" type="search" placeholder="Search description or category" /></label><p id="resultsCount" aria-live="polite"></p></div>
+<div className="history-tools" hidden={!activityPage}><label className="search-field"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><span className="sr-only">Search transactions</span><input id="transactionSearch" type="search" placeholder="Search description or category" /></label><p id="resultsCount" aria-live="polite"></p></div>
 <div id="transactions">
 </div>
 <div className="pagination" id="pagination" aria-label="Transaction pages"></div>
+{!activityPage && <a className="view-activity" href="/activity">View all activity <span aria-hidden="true">&rarr;</span></a>}
 </section>
 <div className="bottom-note">
 <span>✳</span> Small entries. Big picture. <span>Made for your accountability.</span>
@@ -131,9 +133,9 @@ export default function Home() {
 </div>
 </main>
 <nav className="mobile-nav" aria-label="Main navigation">
-<a href="#overview"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-7h5v7"/></svg>Overview</a>
+<a href="/" aria-current={!activityPage ? "page" : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-7h5v7"/></svg>Overview</a>
 <button data-open="" className="mobile-add"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Add</button>
-<a href="#activity"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Activity</a>
+<a href="/activity" aria-current={activityPage ? "page" : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Activity</a>
 </nav>
 </div>
 <dialog id="accountDialog" aria-labelledby="accountTitle">
@@ -141,7 +143,7 @@ export default function Home() {
 <div className="modal-head"><div><p className="eyebrow">YOUR SPACE</p><h3 id="accountTitle">Your account<span className="accent">.</span></h3></div><button type="button" className="close" id="closeAccount" aria-label="Close account">&times;</button></div>
 <div className="account-identity"><div className="account-avatar" id="accountInitial" aria-hidden="true">?</div><div><strong id="accountName">Your account</strong><p id="accountEmail"></p></div></div>
 <div className="account-connection"><span className="account-connection-dot" aria-hidden="true"></span><div><strong id="accountStatus">Checking connection</strong><p id="accountStatusDetail"></p></div></div>
-<div className="account-actions"><button type="button" id="accountProfile"><span><strong>Manage account</strong><small>Profile, security and active sessions</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountSettings"><span><strong>Money settings</strong><small>Country and currency</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSignOut" className="account-sign-out">Sign out</button></div>
+<div className="account-actions"><button type="button" id="accountSignIn" hidden><span><strong>Sign in to sync</strong><small>Access your account across devices</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountProfile"><span><strong>Manage account</strong><small>Profile, security and active sessions</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountInstall"><span><strong>Install My Money</strong><small>Add the app to your device</small></span><span aria-hidden="true">&#8595;</span></button><p id="installHelp" className="install-help" role="status" hidden></p><button type="button" id="accountSettings"><span><strong>Money settings</strong><small>Country and currency</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSignOut" className="account-sign-out">Sign out</button></div>
 </div>
 </dialog>
 <dialog id="entryDialog">

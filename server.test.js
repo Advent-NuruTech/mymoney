@@ -13,7 +13,7 @@ test('serves the app, exposes Clerk configuration, and protects synchronization'
       server.once('exit', code => reject(new Error(`Next.js exited before starting (${code})`)));
       setTimeout(() => reject(new Error('Next.js did not start in time')), 30000).unref();
     });
-    for (const path of ['/', '/app.js', '/manifest.webmanifest', '/sw.js']) {
+    for (const path of ['/', '/activity', '/app.js', '/manifest.webmanifest', '/sw.js']) {
       const response = await fetch(`http://localhost:${port}${path}`);
       assert.equal(response.status, 200, path);
     }

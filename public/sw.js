@@ -1,11 +1,11 @@
-const CACHE = 'my-money-v9';
-const SHELL = ['/', '/style.css', '/app.js', '/logo.png', '/icon-32.png', '/icon-180.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/manifest.webmanifest'];
+const CACHE = 'my-money-v12';
+const SHELL = ['/', '/activity', '/style.css', '/app.js', '/logo.png', '/icon-32.png', '/icon-180.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/manifest.webmanifest'];
 self.addEventListener('install', event => event.waitUntil((async () => {
   const cache = await caches.open(CACHE);
   await cache.addAll(SHELL);
   // Next's hashed JavaScript and CSS are needed to hydrate the cached page offline.
-  const page = await (await cache.match('/')).text();
-  const assets = [...new Set(page.match(/\/_next\/static\/[^"\s<>?\\]+/g) || [])];
+  const pages = await Promise.all(['/', '/activity'].map(async path => (await cache.match(path)).text()));
+  const assets = [...new Set(pages.flatMap(page => page.match(/\/_next\/static\/[^"\s<>?\\]+/g) || []))];
   await cache.addAll(assets);
   await self.skipWaiting();
 })()));

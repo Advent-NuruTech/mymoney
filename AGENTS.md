@@ -12,3 +12,6 @@
 - Record consequential decisions and explicit user preferences in this file when they are made, updating existing guidance if a newer decision replaces it. Keep the notes concise and specific so future work can follow them without asking the user to repeat themselves.
 
 - Keep the custom in-app account panel and Clerk-managed profile, security, and sessions compatible with the existing local-first offline cache and sync.
+- Keep Settings and Sign out inside the profile account panel rather than in the header, including on mobile.
+
+- Keep a dedicated, searchable and paginated activity page for large transaction histories, with recent activity on the overview.
