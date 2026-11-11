@@ -53,6 +53,10 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <button className="primary desktop-add" data-open="">
 <span>＋</span> Add transaction</button>
 </section>
+<div className="money-shortcuts" aria-label="Money shortcuts">
+<button type="button" data-new-wallet=""><span aria-hidden="true">＋</span><span><strong>Add account</strong><small>Bank, mobile money or cash</small></span></button>
+<button type="button" data-import-messages=""><span aria-hidden="true">↙</span><span><strong>Paste a message</strong><small>Review it, then save</small></span></button>
+</div>
 <div id="settingsReminder" className="settings-reminder" hidden><div><strong>Make your money feel local</strong><p>Set your country and currency so amounts are shown correctly.</p></div><button type="button" id="reminderSettings">Set country &amp; currency</button></div>
 <section className="balance-card">
 <div className="balance-copy">
@@ -175,7 +179,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 </label>
 <label className="field">What was it for?<input name="description" maxLength={100} placeholder="Optional description" />
 </label>
-<div className="form-row">
+<div>
 <label className="field">Category<select name="category">
 <option value="">Needs Review</option><option>Food & drink</option>
 <option>Shopping</option>
@@ -205,9 +209,13 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <option>Other</option>
 </select>
 </label>
-<label className="field">Date<input name="date" type="date" required />
-</label>
 </div>
+<div className="form-row">
+<label className="field">Date<input name="date" type="date" required /></label>
+<label className="field">Time <span className="optional">(optional)</span><input name="time" type="time" aria-describedby="timeHint" /></label>
+</div>
+<p id="timeHint" className="field-help">New entries use the current time if left blank.</p>
+<div id="entryExtras"></div>
 <button className="primary save" type="submit">Save transaction <span>→</span>
 </button>
 <button className="save-another" type="submit" name="saveAnother" value="yes">Save and add another</button>

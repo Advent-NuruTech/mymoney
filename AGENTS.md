@@ -19,3 +19,9 @@
 - Money In, Money Out and Move Money are distinct ledger groups. Transfers are one atomic record with source, destination and confirmed fee; fees count once in expenses and source balance. Never assume cash fees.
 - Preserve legacy records under Unassigned until explicitly assigned. Archived accounts remain in combined balances. Reconciliation never silently changes balances; explicit adjustments are excluded from income and spending.
 - Message extraction and review run offline; no SMS inbox permissions. Account/category/reconciliation records use the existing versioned sync transport; apply the multi-account migration before deploying this client.
+
+- Keep the current sync SQL migration self-contained for SQL Editor users: create missing private schema/tables idempotently before compiling the RPC, preserve existing rows, and apply setup plus function replacement atomically.
+
+- Keep Add account prominent on the overview and available inside transaction entry without losing the draft. Account setup starts with name, type and starting balance; advanced controls stay secondary.
+- Message import must make direct pasting obvious, with a clipboard button and manual-paste fallback, and require review before saving. Keep file import available.
+- New transaction times are optional and default to the current local time, including when left blank. Preserve times extracted from messages and existing records; identify a missing message time as a current-time default during review.

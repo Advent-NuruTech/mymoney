@@ -1,5 +1,43 @@
--- Apply after 202611090001_sync.sql before deploying the new client.
--- Keeps the existing per-user lock, idempotency keys, versions and conflict flow.
+-- Run this entire file in the Supabase SQL Editor before deploying the client.
+-- Works both on a fresh project and after 202611090001_sync.sql.
+-- Existing tables and financial records are preserved; only missing tables are created.
+-- Clerk must be configured as a third-party auth provider with role=authenticated.
+-- Keep bootstrap and function replacement atomic if any statement fails.
+begin;
+
+create schema if not exists money_private;
+revoke all on schema money_private from public, anon, authenticated;
+
+create table if not exists money_private.user_cursors (
+  user_id text primary key,
+  cursor bigint not null default 0
+);
+create table if not exists money_private.transactions (
+  user_id text not null,
+  id uuid not null,
+  version bigint not null check (version > 0),
+  entry jsonb not null,
+  primary key (user_id, id)
+);
+create table if not exists money_private.changes (
+  user_id text not null,
+  cursor bigint not null,
+  entry jsonb not null,
+  primary key (user_id, cursor)
+);
+create table if not exists money_private.operations (
+  user_id text not null,
+  operation_id uuid not null,
+  request jsonb not null,
+  result jsonb not null,
+  primary key (user_id, operation_id)
+);
+revoke all on all tables in schema money_private from public, anon, authenticated;
+alter table money_private.user_cursors enable row level security;
+alter table money_private.transactions enable row level security;
+alter table money_private.changes enable row level security;
+alter table money_private.operations enable row level security;
+
 create or replace function public.money_sync(p_cursor text, p_operations jsonb)
 returns jsonb language plpgsql security definer set search_path = pg_catalog
 as $$
@@ -83,3 +121,5 @@ end;
 $$;
 revoke all on function public.money_sync(text,jsonb) from public, anon;
 grant execute on function public.money_sync(text,jsonb) to authenticated;
+
+commit;

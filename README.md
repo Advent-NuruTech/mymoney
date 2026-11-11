@@ -30,7 +30,7 @@ Configure your app's production domain in Clerk. Serve the app over HTTPS in pro
 ## Configure Supabase sync
 
 1. Configure Clerk as a third-party authentication provider in Supabase and configure Clerk session tokens to contain the `authenticated` role. Follow the [Supabase Clerk integration guide](https://supabase.com/docs/guides/auth/third-party/clerk). The publishable key by itself does not authenticate a user.
-2. Apply `supabase/migrations/202611090001_sync.sql` in your project's SQL Editor. The migration creates private tables and exposes only a user-authenticated sync function. Keep the database and Clerk secrets out of client code.
+2. Run the entire `supabase/migrations/202611110001_multi_account.sql` file in your project's SQL Editor. It creates any missing private schema/tables and installs the current user-authenticated sync function, so it works on both a fresh project and an existing installation. Keep the database and Clerk secrets out of client code.
 3. Restart the app, sign in, and check that a transaction appears on another signed-in device. Configure Supabase backups and test restoration before relying on it for important data.
 
 Sync uses server-issued versions, per-user cursors, idempotent operations, and retained deletion records. Concurrent edits show a choice between the local and server versions. IndexedDB records created by the old app are uploaded when their owner next signs in. The old `.data/transactions.json` is **not** automatically imported; keep a backup and migrate any server-only records before retiring the old server. Guest entries remain on their original device.
@@ -41,7 +41,7 @@ The sync history and idempotency records are currently retained indefinitely. Th
 
 ## Multi-account ledger
 
-Apply `supabase/migrations/202611110001_multi_account.sql` **after** the original sync migration and **before** releasing the new client. It extends the existing per-user, versioned, idempotent RPC to retain account, transfer, category, reconciliation and audit records. No existing financial records are rewritten. This migration has not been applied automatically.
+Apply the entire `supabase/migrations/202611110001_multi_account.sql` file **before** releasing the new client. This file is self-contained: it creates the private schema and any missing tables before compiling the function. It also works if the original migration has already run, without deleting or resetting existing records. If you previously saw `schema "money_private" does not exist`, rerun this updated file in full; creating only the schema is insufficient because the function also references table row types. It extends the existing per-user, versioned, idempotent RPC to retain account, transfer, category, reconciliation and audit records. No existing financial records are rewritten. This migration has not been applied automatically.
 
 Existing transactions appear under **Unassigned** until the user assigns an account. Opening balances precede recorded history; archived accounts stay in the combined total. A transfer is one atomic IndexedDB record. Its fee appears as a linked Transaction Charges expense row, with exactly one deduction from the source. Reconciliation confirmations preserve their calculated and actual balances; explicit adjustments never count as earnings or spending. Edit and deletion snapshots are retained as separate audit records.
 
