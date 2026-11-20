@@ -44,6 +44,8 @@ export function setupBusiness({ db, getClerk, getOwner, getCurrency, currencies,
     open();
   };
 
+  document.querySelector('#navBusiness')?.addEventListener('click', open);
+
   async function request(action, data = {}, owner = getOwner()) {
     if (!navigator.onLine) throw new Error('Connect to the internet to use business accounts.');
     const clerk = getClerk();

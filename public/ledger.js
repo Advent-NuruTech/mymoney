@@ -1,6 +1,6 @@
 export const UNASSIGNED = 'unassigned';
 export const groups = ['income','expense','transfer','adjustment'];
-export const categories = ['Food','Transport','Rent','Bills','Shopping','Business','Salary','Gifts','Savings','Education','Health','Transaction Charges','Other'];
+export const categories = ['Food','Transport','Rent','Bills','Shopping','Business','Salary','Gifts','Savings','Education','Health','Transaction Charges','Other','Food & drink','Entertainment','Tithes','Offerings','Giving & donations','Housing & rent','Groceries','Utilities','Family & childcare','Insurance','Personal care','Travel','Subscriptions','Debt payments','Savings & investments','Freelance','Interest & dividends'];
 export function cents(value) {
  if (!/^-?\d+(?:\.\d{1,2})?$/.test(String(value))) throw Error('Use an amount with up to two decimal places.');
  const n = Math.round(Number(value)*100);

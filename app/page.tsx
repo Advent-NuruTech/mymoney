@@ -137,6 +137,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <a href="/" aria-current={!activityPage ? "page" : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-7h5v7"/></svg>Overview</a>
 <button data-open="" className="mobile-add"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Add</button>
 <a href="/activity" aria-current={activityPage ? "page" : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Activity</a>
+<button type="button" id="navBusiness" aria-haspopup="dialog"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>Business</button>
 </nav>
 </div>
 <dialog id="accountDialog" aria-labelledby="accountTitle">
@@ -178,35 +179,9 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <label className="field">What was it for?<input name="description" maxLength={100} placeholder="Optional description" />
 </label>
 <div>
-<label className="field">Category<select name="category">
-<option value="">Needs Review</option><option>Food & drink</option>
-<option>Shopping</option>
-<option>Transport</option>
-<option>Bills</option>
-<option>Health</option>
-<option>Entertainment</option>
-<option>Tithes</option>
-<option>Offerings</option>
-<option>Giving &amp; donations</option>
-<option>Housing &amp; rent</option>
-<option>Groceries</option>
-<option>Utilities</option>
-<option>Education</option>
-<option>Family &amp; childcare</option>
-<option>Insurance</option>
-<option>Personal care</option>
-<option>Travel</option>
-<option>Subscriptions</option>
-<option>Debt payments</option>
-<option>Savings &amp; investments</option>
-<option>Gifts</option>
-<option>Business</option>
-<option>Freelance</option>
-<option>Interest &amp; dividends</option>
-<option>Salary</option>
-<option>Other</option>
-</select>
-</label>
+<label className="field">Category<input name="category" list="entryCategories" maxLength={50} autoComplete="off" placeholder="Search or type a category" /></label>
+<datalist id="entryCategories"></datalist>
+<button type="button" className="text-action" id="entryManageCategories">Manage categories</button>
 </div>
 <div className="form-row">
 <label className="field">Date<input name="date" type="date" required /></label>

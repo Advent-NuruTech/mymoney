@@ -285,12 +285,12 @@ function dialog(id,title,body) {
  d.showModal(); return d;
 }
 function renderFinance(summary) {
- const wallets=accounts(state.records), cats=[...new Set([...categories,...state.entries.map(x=>x.category).filter(Boolean),...state.records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description)])];
+ const wallets=accounts(state.records), cats=[...new Set([...categoryChoices().filter(x=>!x.archived).map(x=>x.description),...state.entries.map(x=>x.category).filter(Boolean)])];
  const accountsExpanded = $('#accountOverview')?.open || false;
  const accountCards=`<section class="finance-section"><div class="section-heading"><div><p class="eyebrow">YOUR MONEY</p><h3>Accounts</h3><p>Keep bank, mobile money and cash balances together.</p></div><div class="finance-actions"><button id="manageCategories">Categories</button></div></div><div class="wallet-grid">${wallets.length===1?'<div class="account-empty"><strong>Add your first account</strong><p>Choose where your money lives, then record its transactions.</p><p>Open Add, then choose Add account.</p></div>':''}${wallets.filter(a=>a.id!==UNASSIGNED||state.entries.some(x=>!x.accountId||x.accountId===UNASSIGNED||x.toAccountId===UNASSIGNED)).map(a=>`<article class="wallet ${a.archived?'archived':''}"><small>${escapeHtml(a.kind)}${a.archived?' · Archived':''}</small><h4>${escapeHtml(a.description)}</h4><strong>${money(balance(state.records,a.id))}</strong><div class="finance-actions"><button data-wallet-history="${escapeHtml(a.id)}">History</button>${a.id===UNASSIGNED?'':`<button data-wallet="${a.id}">Edit</button><button data-reconcile="${a.id}">Reconcile</button>`}</div></article>`).join('')}</div><p class="form-hint">Archived accounts remain in your total and financial history. Unassigned records need an account.</p></section>`;
  const reports=`<section class="finance-section" aria-label="Activity report"><div class="report-filters"><label>Account<select id="reportAccount">${options(wallets,financialFilters.account,'All accounts')}</select></label><label>Category<select id="reportCategory"><option value="">All categories</option>${cats.map(c=>`<option ${financialFilters.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></label><label>Period<select id="reportPeriod">${[['','All time'],['day','Today'],['week','This week'],['month','This month'],['year','This year']].map(([v,l])=>`<option value="${v}" ${financialFilters.period===v?'selected':''}>${l}</option>`).join('')}</select></label><label>From<input type="date" id="reportFrom" value="${financialFilters.from}"></label><label>To<input type="date" id="reportTo" value="${financialFilters.to}"></label></div><div class="report-grid"><div>Money In<strong>${money(summary.income)}</strong></div><div>Money Out <small>(includes fees)</small><strong>${money(summary.expense)}</strong></div><div>Money Moved<strong>${money(summary.transfer)}</strong></div><div>Transaction Charges<strong>${money(summary.fees)}</strong></div><button data-filter="review">Needs Review<strong>${summary.review}</strong></button></div>${summary.review?'<p class="review-note">A little detail helps: explain your uncategorized transactions when you have a moment.</p>':''}</section>`;
  $('#financePanel').innerHTML = historyPage ? accountCards + reports : `<details id="accountOverview" class="account-overview" ${accountsExpanded?'open':''}><summary>Accounts <span>View balances &amp; manage</span></summary>${accountCards}</details>`;
- $('#manageCategories').onclick=manageCategories;
+ $('#manageCategories').onclick=()=>manageCategories();
  if (!historyPage) return;
  for(const [id,key] of [['reportAccount','account'],['reportCategory','category'],['reportFrom','from'],['reportTo','to']]) $('#'+id).onchange=e=>{financialFilters[key]=e.target.value;state.page=1;render();};
  $('#reportPeriod').onchange=e=>{const p=e.target.value,d=new Date();financialFilters.period=p;financialFilters.to=p?today():'';if(p==='week')d.setDate(d.getDate()-((d.getDay()+6)%7));if(p==='month')d.setDate(1);if(p==='year'){d.setMonth(0);d.setDate(1);}financialFilters.from=p?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';state.page=1;render();};
@@ -313,7 +313,8 @@ function prepareEntry(entry) {
   f.elements[button.dataset.addEntryAccount].value=account.id;
   updateEntryFields();
  });});
- const cat=f.elements.category; for(const option of [...cat.querySelectorAll('[data-dynamic-category]')]) option.remove(); for(const c of [...categories,...records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description), ...(entry?.category ? [entry.category] : [])]) if(![...cat.options].some(o=>o.value===c)){const option=new Option(c,c);option.dataset.dynamicCategory='true';cat.add(option);}
+ const cat=f.elements.category;
+ refreshEntryCategories();
  cat.value=entry?.category||'';
  f.onchange=updateEntryFields; updateEntryFields();
  f.elements.description.onblur=()=>{if(!cat.value){const previous=(businessEntry?.records || state.entries).find(x=>x.description.toLowerCase()===f.elements.description.value.trim().toLowerCase()&&x.category);if(previous){cat.value=previous.category;toast('Category suggested from your history. You can change it.');}}};
@@ -339,7 +340,8 @@ async function saveFinanceEntry(e) {
   if(amount<=0||fee<0)throw Error('Enter a positive amount and a non-negative fee.');
   if(!v.accountId.value)throw Error('Select the account involved.');
   if(v.type.value==='transfer'&&(!v.toAccountId.value||v.toAccountId.value===v.accountId.value))throw Error('Choose two different accounts.');
-  const x={...old,...(imported||{}),id:old?.id||crypto.randomUUID(),owner:state.user,type:v.type.value,cents:amount,fee,accountId:v.accountId.value,toAccountId:v.type.value==='transfer'?v.toAccountId.value:'',description:v.description.value.trim()|| (v.type.value==='transfer'?'Move Money':v.category.value||'Unexplained transaction'),category:v.category.value,date:v.date.value,time:v.time.value||(old?'':currentTime()),reference:v.reference.value.trim(),review:false,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:Date.now(),dirty:true,deleted:false};
+  const category = v.category.value.trim();
+  const x={...old,...(imported||{}),id:old?.id||crypto.randomUUID(),owner:state.user,type:v.type.value,cents:amount,fee,accountId:v.accountId.value,toAccountId:v.type.value==='transfer'?v.toAccountId.value:'',description:v.description.value.trim()|| (v.type.value==='transfer'?'Move Money':category||'Unexplained transaction'),category,date:v.date.value,time:v.time.value||(old?'':currentTime()),reference:v.reference.value.trim(),review:false,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:Date.now(),dirty:true,deleted:false};
   if (business) {
    if (!['income', 'expense'].includes(x.type)) throw Error('Choose Money In or Money Out.');
    await business.save(x);
@@ -380,11 +382,91 @@ function reconcile(id) {
  $('#reconcileForm').elements.actual.oninput=e=>{try{const diff=cents(e.target.value)-calculated;$('#reconcileDifference').textContent=`Difference: ${money(diff)} · ${diff===0?'Reconciled':'Needs Review'}`;}catch{}};
  $('#reconcileForm').onsubmit=async e=>{e.preventDefault();try{const v=e.target.elements,actual=cents(v.actual.value),diff=actual-calculated;if(v.adjust.checked&&diff&&!v.note.value.trim())throw Error('Explain the adjustment so the history stays clear.');await saveRecord({type:v.adjust.checked&&diff?'adjustment':'reconciliation',accountId:id,description:v.note.value.trim()||'Balance confirmed',actual,calculated,cents:v.adjust.checked?diff:0,category:'Reconciliation',time:new Date().toTimeString().slice(0,5)});d.close();}catch(err){toast(err.message);}};
 }
-function manageCategories() {
- const custom=state.records.filter(x=>x.type==='category'&&!x.deleted);
- const d=dialog('categoryDialog','Categories',`<p>Use Parent / Child for subcategories. Renaming a category preserves the original labels in transaction history.</p><form id="categoryForm"><label class="field">Category<select name="id"><option value="">New category</option>${custom.map(c=>`<option value="${c.id}">${escapeHtml(c.description)}</option>`).join('')}</select></label><label class="field">Name<input name="name" maxlength="50" required placeholder="Business / Supplies"></label><label><input name="archived" type="checkbox"> Archive category</label><button class="primary save">Save category</button></form>`);
- $('#categoryForm').elements.id.onchange=e=>{const c=custom.find(x=>x.id===e.target.value);$('#categoryForm').elements.name.value=c?.description||'';$('#categoryForm').elements.archived.checked=!!c?.archived;};
- $('#categoryForm').onsubmit=async e=>{e.preventDefault();const v=e.target.elements;await saveRecord({type:'category',description:v.name.value.trim(),archived:v.archived.checked},custom.find(x=>x.id===v.id.value));d.close();};
+function categoryChoices() {
+ const saved = state.records.filter(x => x.type === 'category' && !x.deleted);
+ const overrides = new Map(saved.filter(x => x.defaultCategory).map(x => [x.defaultCategory, x]));
+ return [
+  ...categories.map(name => overrides.get(name) || { defaultCategory: name, description: name }),
+  ...saved.filter(x => !x.defaultCategory),
+ ].sort((a, b) => a.description.localeCompare(b.description));
+}
+function refreshEntryCategories() {
+ const labels = new Set(categoryChoices().filter(x => !x.archived).map(x => x.description));
+ $('#entryCategories').replaceChildren(...Array.from(labels, name => new Option(name, name)));
+}
+$('#entryManageCategories').onclick = () => manageCategories($('#entryForm').elements.category);
+function manageCategories(entryCategory) {
+ const choices = categoryChoices();
+ const owner = state.user;
+ const d = dialog('categoryDialog', 'Categories', `<form id="categoryForm">
+  <p class="field-help">Use Parent / Child for subcategories. Existing transactions keep their recorded category names.</p>
+  <label class="field">Search categories<input name="search" type="search" placeholder="Search by name"></label>
+  <label class="field">Category<select name="choice"></select></label>
+  <label class="field">Name<input name="name" maxlength="50" required placeholder="Type a category name"></label>
+  <label><input name="archived" type="checkbox"> Archive category</label>
+  <p class="field-help" role="status"></p>
+  <button class="primary save">Save category</button>
+ </form>`);
+ const form = $('#categoryForm');
+ const fields = form.elements;
+ const status = form.querySelector('[role="status"]');
+ function filterChoices() {
+  const query = fields.search.value.trim().toLowerCase();
+  const selected = fields.choice.value;
+  fields.choice.replaceChildren(new Option('New category', ''));
+  choices.forEach((choice, index) => {
+   if (!choice.description.toLowerCase().includes(query) && String(index) !== selected) return;
+   fields.choice.add(new Option(choice.description + (choice.archived ? ' (archived)' : ''), index));
+  });
+  fields.choice.value = selected;
+ }
+ fields.search.oninput = filterChoices;
+ fields.choice.onchange = () => {
+  const selected = choices[fields.choice.value];
+  fields.name.value = selected?.description || '';
+  fields.archived.checked = !!selected?.archived;
+  status.textContent = '';
+ };
+ filterChoices();
+ if (entryCategory?.value.trim()) {
+  const name = entryCategory.value.trim();
+  const index = choices.findIndex(choice => choice.description === name);
+  if (index >= 0) {
+   fields.choice.value = String(index);
+   fields.choice.onchange();
+  } else {
+   fields.name.value = name;
+  }
+ }
+ form.onsubmit = async event => {
+  event.preventDefault();
+  const button = form.querySelector('button');
+  if (button.disabled) return;
+  const selected = choices[fields.choice.value];
+  const description = fields.name.value.trim();
+  const archived = fields.archived.checked;
+  try {
+   if (state.user !== owner) throw Error('Account changed. Reopen categories.');
+   if (!description) throw Error('Enter a category name.');
+   if (!archived && choices.some(choice => choice !== selected && !choice.archived && choice.description.toLowerCase() === description.toLowerCase())) {
+    throw Error('A category with that name already exists.');
+   }
+   button.disabled = true;
+   await saveRecord({
+    type: 'category', description, archived,
+    ...(selected?.defaultCategory ? { defaultCategory: selected.defaultCategory } : {}),
+   }, selected?.id ? selected : undefined);
+   if (state.user === owner && entryCategory && $('#entryDialog').open) {
+    refreshEntryCategories();
+    if (!archived) entryCategory.value = description;
+   }
+   d.close();
+  } catch (error) {
+   status.textContent = error.message;
+  } finally {
+   button.disabled = false;
+  }
+ };
 }
 function openImport(business = null) {
  const records = business?.records || state.records;

@@ -29,3 +29,5 @@
 - New transaction times are optional and default to the current local time, including when left blank. Preserve times extracted from messages and existing records; identify a missing message time as a current-time default during review.
 
 - Keep Business accounts in the profile panel. Each business has its own currency and uses the personal Money In, Money Out and paste-and-review form. Store business transactions separately, scoped to the signed-in user and business, with a local-first queue that retries on reconnect. Cache only the recorder's own entries for offline viewing. Owners invite admins or members through expiring single-use links. Enforce access and recorder identity on the server. Owners and admins see the full synced ledger, while members see only their own transactions and totals.
+
+- The mobile bottom navigation opens Business directly. Transaction categories accept typed names and provide searchable management for custom and built-in categories. Renaming a category preserves the recorded labels on existing transactions.
