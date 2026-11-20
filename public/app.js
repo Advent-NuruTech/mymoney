@@ -1,3 +1,4 @@
+import { setupBusiness } from '/business.js';
 import { accounts, balance, reportTotals, activityRows, groups, needsReview, duplicate, transferMatches, parseMessage, cents, categories, UNASSIGNED } from '/ledger.js';
 const $ = s => document.querySelector(s);
 let installPrompt = null;
@@ -6,7 +7,7 @@ window.addEventListener('appinstalled', () => { installPrompt = null; const butt
 const appInstalled = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 const historyPage = document.querySelector('.app').dataset.historyPage === 'true';
 const state = { entries: [], filter: 'all', user: localStorage.getItem('mm-user') || 'guest', clerk: null, syncing: false, configured: false, query: '', page: 1, editing: null, preferences: null, setupSaving: false, setupPromptedFor: null };
-const db = await new Promise((resolve, reject) => { const request = indexedDB.open('my-money', 3); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'id' }); const entries = request.transaction.objectStore('entries'); if (!entries.indexNames.contains('owner')) entries.createIndex('owner', 'owner'); if (!request.result.objectStoreNames.contains('metadata')) request.result.createObjectStore('metadata'); }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+const db = await new Promise((resolve, reject) => { const request = indexedDB.open('my-money', 4); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'id' }); const entries = request.transaction.objectStore('entries'); if (!entries.indexNames.contains('owner')) entries.createIndex('owner', 'owner'); if (!request.result.objectStoreNames.contains('metadata')) request.result.createObjectStore('metadata'); if (!request.result.objectStoreNames.contains('businessEntries')) { const business = request.result.createObjectStore('businessEntries', { keyPath: ['owner','businessId','id'] }); business.createIndex('owner', 'owner'); business.createIndex('business', ['owner','businessId']); } }; request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); }; request.onerror = () => reject(request.error); });
 function allEntries() { return new Promise((resolve, reject) => { const req = db.transaction('entries').objectStore('entries').index('owner').getAll(state.user); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
 function put(entry) {
  return new Promise((resolve,reject)=>{
@@ -34,14 +35,23 @@ async function render(refresh = false) {
   $('#pagination').innerHTML = historyPage && pages > 1 ? `<button data-page="${state.page-1}" ${state.page === 1 ? 'disabled' : ''}>Previous</button><label>Page <input id="pageJump" type="number" min="1" max="${pages}" value="${state.page}" aria-label="Page number"> of ${pages}</label><button data-page="${state.page+1}" ${state.page === pages ? 'disabled' : ''}>Next</button>` : '';
   renderFinance(summary); status();
 }
-function openEntry(entry = null) {
+let businessEntry = null;
+function openEntry(entry = null, business = null) {
+  businessEntry = business;
+  $('#entryBusinessContext').hidden = !business;
+  $('#entryBusinessContext').textContent = business?.name || '';
+  $('#amountCurrency').textContent = business?.currency || state.preferences?.currency || 'USD';
+  const transfer = $('#entryTransferChoice');
+  transfer.hidden = !!business;
+  transfer.querySelector('input').disabled = !!business;
+  $('#entryError').textContent = '';
   const form = $('#entryForm'); form.reset(); state.editing = entry?.id || null;
   $('#dialogTitle').textContent = entry ? 'Edit transaction' : 'Add a transaction';
   form.querySelector('[name=date]').value = entry?.date || today();
   if (entry) { form.elements.type.value = entry.type; form.elements.amount.value = (entry.cents / 100).toFixed(2); form.elements.description.value = entry.description; if (![...form.elements.category.options].some(option => option.value === entry.category)) form.elements.category.add(new Option(entry.category, entry.category)); form.elements.category.value = entry.category; }
   form.querySelector('.save-another').hidden = !!entry;
   $('#entryImport').hidden = !!entry;
-  prepareEntry(entry); $('#entryDialog').showModal();
+  prepareEntry(entry); if (!$('#entryDialog').open) $('#entryDialog').showModal();
 }
 let detailId = null;
 function openDetail(entry) {
@@ -132,7 +142,7 @@ function cachedPreferences(owner) { try { return JSON.parse(localStorage.getItem
 function validPreferences(value) { return value && typeof value.country === 'string' && /^[A-Z]{2}$/.test(value.country) && typeof value.currency === 'string' && /^[A-Z]{3}$/.test(value.currency); }
 function applyPreferences(value) {
   state.preferences = validPreferences(value) ? {country:value.country, currency:value.currency} : null;
-  $('#amountCurrency').textContent = state.preferences?.currency || 'USD';
+  $('#amountCurrency').textContent = businessEntry?.currency || state.preferences?.currency || 'USD';
   $('#settingsReminder').hidden = !!state.preferences;
 }
 const countryCodes = 'AD AE AF AG AI AL AM AO AR AS AT AU AW AZ BA BB BD BE BF BG BH BI BJ BM BN BO BQ BR BS BT BW BY BZ CA CD CF CG CH CI CK CL CM CN CO CR CU CV CW CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WS XK YE YT ZA ZM ZW'.split(' ');
@@ -195,13 +205,19 @@ $('#setupForm').onsubmit = async e => {
   } catch (error) { $('#setupError').textContent = error.message || 'Could not save settings. Please try again.'; }
   finally { state.setupSaving = false; button.disabled = false; }
 };
+const businessAccounts = setupBusiness({
+  db, getOwner: () => state.user, openEntry, duplicate,
+  getClerk: () => state.clerk,
+  getCurrency: () => state.preferences?.currency || 'USD',
+  currencies, escapeHtml,
+});
 let authLoading = false;
-async function setupAuth() { if (authLoading || state.clerk) return; authLoading = true; try { const config = await (await fetch('/api/config')).json(); if(!config.publishableKey || !config.clerkDomain) return; state.configured = true; const script = document.createElement('script'); script.async = true; script.crossOrigin = 'anonymous'; script.dataset.clerkPublishableKey = config.publishableKey; script.src = `https://${config.clerkDomain}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`; await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.appendChild(script)}); await window.Clerk.load({appearance:{variables:{colorPrimary:'#003b19', colorText:'#003b19', colorBackground:'#ffffff', colorInputBackground:'#ffffff', borderRadius:'0.75rem'}}}); state.clerk=window.Clerk; async function update() { const previous = state.user; state.user = state.clerk.user?.id || 'guest'; if(state.clerk.user) localStorage.setItem('mm-user',state.user); else localStorage.removeItem('mm-user'); $('#signIn').textContent = state.clerk.user ? '↗  Account & sign out' : '↗  Sign in to sync'; $('#signIn').textContent = state.clerk.user ? 'Edit profile' : 'Sign in to sync'; const name = state.clerk.user?.fullName || state.clerk.user?.username || state.clerk.user?.primaryEmailAddress?.emailAddress; setAccountAvatar($('#accountShortcut'), state.clerk.user, name); $('#accountShortcut').setAttribute('aria-label', name ? `Edit profile for ${name}` : 'Account'); const accountPreferences = state.clerk.user?.unsafeMetadata?.moneyPreferences;
+async function setupAuth() { if (authLoading || state.clerk) return; authLoading = true; try { const config = await (await fetch('/api/config')).json(); if(!config.publishableKey || !config.clerkDomain) return; state.configured = true; const script = document.createElement('script'); script.async = true; script.crossOrigin = 'anonymous'; script.dataset.clerkPublishableKey = config.publishableKey; script.src = `https://${config.clerkDomain}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`; await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.appendChild(script)}); await window.Clerk.load({appearance:{variables:{colorPrimary:'#003b19', colorText:'#003b19', colorBackground:'#ffffff', colorInputBackground:'#ffffff', borderRadius:'0.75rem'}}}); state.clerk=window.Clerk; async function update() { const previous = state.user; state.user = state.clerk.user?.id || 'guest'; if(state.clerk.user) localStorage.setItem('mm-user',state.user); else localStorage.removeItem('mm-user'); $('#signIn').textContent = state.clerk.user ? '↗  Account & sign out' : '↗  Sign in to sync'; $('#signIn').textContent = state.clerk.user ? 'Edit profile' : 'Sign in to sync'; const name = state.clerk.user?.fullName || state.clerk.user?.username || state.clerk.user?.primaryEmailAddress?.emailAddress; setAccountAvatar($('#accountShortcut'), state.clerk.user, name); $('#accountShortcut').setAttribute('aria-label', name ? `Edit profile for ${name}` : 'Account'); const accountPreferences = state.clerk.user?.unsafeMetadata?.moneyPreferences; businessAccounts.updateAuth();
   const preferences = validPreferences(accountPreferences) ? accountPreferences : cachedPreferences(state.user);
   if (validPreferences(accountPreferences)) localStorage.setItem(preferenceKey(state.user), JSON.stringify(accountPreferences));
   applyPreferences(preferences); await render();
-  if (state.clerk.user && !validPreferences(preferences) && !state.setupSaving && state.setupPromptedFor !== state.user) { state.setupPromptedFor = state.user; openSetup(); }
-  if (previous !== state.user) { document.querySelectorAll('dialog[data-finance]').forEach(d => d.close()); importQueue = []; imported = null; Object.keys(financialFilters).forEach(k=>financialFilters[k]=''); if ($('#entryDialog').open) $('#entryDialog').close(); if ($('#detailDialog').open) $('#detailDialog').close(); state.editing = null; detailId = null; }
+  if (state.clerk.user && !validPreferences(preferences) && !state.setupSaving && !location.hash.startsWith('#business-invite=') && state.setupPromptedFor !== state.user) { state.setupPromptedFor = state.user; openSetup(); }
+  if (previous !== state.user) { document.querySelectorAll('dialog[data-finance]').forEach(d => d.close()); importQueue = []; imported = null; Object.keys(financialFilters).forEach(k=>financialFilters[k]=''); if ($('#entryDialog').open) $('#entryDialog').close(); if ($('#detailDialog').open) $('#detailDialog').close(); state.editing = null; businessEntry = null; detailId = null; }
   if (previous !== state.user && !state.clerk.user) { state.setupPromptedFor = null; if ($('#setupDialog').open) $('#setupDialog').close(); }
   if ($('#accountDialog').open) updateAccount(); sync(); } state.clerk.addListener(update); await update(); } catch(e) { console.warn('Authentication unavailable:', e.message); } finally { authLoading = false; } }
 function setAccountAvatar(element, user, name) {
@@ -281,9 +297,15 @@ function renderFinance(summary) {
 }
 function prepareEntry(entry) {
  const f=$('#entryForm'); imported=entry?.source?entry:null;
- const wallets=accounts(state.records).filter(a=>!a.archived||[entry?.accountId,entry?.toAccountId].includes(a.id));
+ const records = businessEntry?.records || state.records;
+ const wallets=accounts(records).filter(a=>!a.archived||[entry?.accountId,entry?.toAccountId].includes(a.id));
  $('#entryAccounts').innerHTML=`<div class="form-row entry-account-row"><div><label class="field"><span id="sourceLabel">Account</span><select name="accountId" required>${options(wallets,entry?.accountId||'')}</select></label><button type="button" class="text-action" data-add-entry-account="accountId">+ Add account</button></div><div id="destinationField"><label class="field">To<select name="toAccountId">${options(wallets,entry?.toAccountId||'')}</select></label><button type="button" class="text-action" data-add-entry-account="toAccountId">+ Add destination account</button></div></div><p id="importContext" class="import-context" hidden></p>`;
  $('#entryExtras').innerHTML=`<details id="entryExtraDetails" ${entry?.fee||entry?.reference?'open':''}><summary>Fee &amp; reference <span class="optional">(optional)</span></summary><label class="field" id="feeField">Transaction fee <span class="optional">(optional)</span><input name="fee" type="number" min="0" step="0.01" value="${((entry?.fee||0)/100).toFixed(2)}"></label><label class="field">Reference <span class="optional">(optional)</span><input name="reference" maxlength="40" value="${escapeHtml(entry?.reference||'')}"></label></details>`;
+ if (businessEntry) {
+   $('#entryAccounts .entry-account-row').hidden = true;
+   f.elements.accountId.value = UNASSIGNED;
+   f.elements.accountId.required = false;
+ }
  f.elements.time.value=entry?entry.time||'':currentTime();
  $('#timeHint').textContent=entry?'Keep the recorded time, or change it if needed.':'New entries use the current time if left blank.';
  $('#entryAccounts').querySelectorAll('[data-add-entry-account]').forEach(button=>{button.onclick=()=>editWallet(null,account=>{
@@ -291,12 +313,13 @@ function prepareEntry(entry) {
   f.elements[button.dataset.addEntryAccount].value=account.id;
   updateEntryFields();
  });});
- const cat=f.elements.category; for(const c of [...categories,...state.records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description)]) if(![...cat.options].some(o=>o.value===c))cat.add(new Option(c,c));
- if(!entry)cat.value='';
+ const cat=f.elements.category; for(const option of [...cat.querySelectorAll('[data-dynamic-category]')]) option.remove(); for(const c of [...categories,...records.filter(x=>x.type==='category'&&!x.archived&&!x.deleted).map(x=>x.description), ...(entry?.category ? [entry.category] : [])]) if(![...cat.options].some(o=>o.value===c)){const option=new Option(c,c);option.dataset.dynamicCategory='true';cat.add(option);}
+ cat.value=entry?.category||'';
  f.onchange=updateEntryFields; updateEntryFields();
- f.elements.description.onblur=()=>{if(!cat.value){const previous=state.entries.find(x=>x.description.toLowerCase()===f.elements.description.value.trim().toLowerCase()&&x.category);if(previous){cat.value=previous.category;toast('Category suggested from your history. You can change it.');}}};
+ f.elements.description.onblur=()=>{if(!cat.value){const previous=(businessEntry?.records || state.entries).find(x=>x.description.toLowerCase()===f.elements.description.value.trim().toLowerCase()&&x.category);if(previous){cat.value=previous.category;toast('Category suggested from your history. You can change it.');}}};
 }
 function updateEntryFields() {
+ if (businessEntry) return;
  const f=$('#entryForm'), move=f.elements.type.value==='transfer', a=accounts(state.records).find(x=>x.id===f.elements.accountId.value), b=accounts(state.records).find(x=>x.id===f.elements.toAccountId.value);
  $('#sourceLabel').textContent=move?'From':'Account'; $('#destinationField').hidden=!move;f.elements.toAccountId.required=move;
  $('#entryAccounts .entry-account-row').classList.toggle('is-transfer',move);
@@ -309,13 +332,24 @@ async function importId(x) {
  return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
 }
 async function saveFinanceEntry(e) {
- e.preventDefault(); if(state.savingEntry)return;state.savingEntry=true; const f=e.target, v=f.elements;
+ e.preventDefault(); if(state.savingEntry)return;state.savingEntry=true; const f=e.target, v=f.elements, business = businessEntry;
+ $('#entryError').textContent = '';
  try {
-  const old=state.entries.find(x=>x.id===state.editing), amount=cents(v.amount.value), fee=cents(v.fee.value||'0');
+  const old=business ? undefined : state.entries.find(x=>x.id===state.editing), amount=cents(v.amount.value), fee=cents(v.fee.value||'0');
   if(amount<=0||fee<0)throw Error('Enter a positive amount and a non-negative fee.');
   if(!v.accountId.value)throw Error('Select the account involved.');
   if(v.type.value==='transfer'&&(!v.toAccountId.value||v.toAccountId.value===v.accountId.value))throw Error('Choose two different accounts.');
   const x={...old,...(imported||{}),id:old?.id||crypto.randomUUID(),owner:state.user,type:v.type.value,cents:amount,fee,accountId:v.accountId.value,toAccountId:v.type.value==='transfer'?v.toAccountId.value:'',description:v.description.value.trim()|| (v.type.value==='transfer'?'Move Money':v.category.value||'Unexplained transaction'),category:v.category.value,date:v.date.value,time:v.time.value||(old?'':currentTime()),reference:v.reference.value.trim(),review:false,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:Date.now(),dirty:true,deleted:false};
+  if (business) {
+   if (!['income', 'expense'].includes(x.type)) throw Error('Choose Money In or Money Out.');
+   await business.save(x);
+   business.records.push(x);
+   if (!$('#entryDialog').open || businessEntry !== business || state.user !== business.owner) return;
+   if (e.submitter?.value === 'yes' && !imported) openEntry(null, business);
+   else { $('#entryDialog').close(); nextImport(business); }
+   if (!$('#entryDialog').open) toast('Transaction saved on this device');
+   return;
+  }
   if(!old && x.reference && x.provider) x.id=await importId(x);
   if(state.user!==x.owner)throw Error('Account changed. Please reopen the transaction.');
   if(duplicate({...x,id:old?.id},state.records))throw Error('This message or reference is already recorded.');
@@ -323,7 +357,7 @@ async function saveFinanceEntry(e) {
   if(imported&&possible.length){const match=possible[0]; if(x.fee && x.fee!==match.fee)throw Error('The fee differs from the existing transfer. Correct that transfer before linking this message.'); if(confirm(`This may be the other side of an existing transfer: ${nameOf(match.accountId)} → ${nameOf(match.toAccountId)}, ${money(match.cents)}. Link this message to that transfer?`)){await put({...match,linkedMessages:[...(match.linkedMessages||[]),{source:x.source,reference:x.reference,provider:x.provider,accountId:x.accountId,reportedBalance:x.reportedBalance}],dirty:true,updatedAt:Date.now()});$('#entryDialog').close();await render(true);sync();nextImport();return;}throw Error('Possible duplicate: review the existing transfer before importing this message.');}
   await put(x);await render(true);sync();toast('Transaction saved');
   if(e.submitter?.value==='yes'&&!old&&!imported)openEntry();else {$('#entryDialog').close();nextImport();}
- }catch(error){toast(error.message);}finally{state.savingEntry=false;}
+ }catch(error){if ($('#entryDialog').open && businessEntry === business) $('#entryError').textContent = error.message;}finally{state.savingEntry=false;}
 }
 function detailFinance(x) {
  const audit=[...(x.audit||[]),...state.records.filter(a=>a.type==='audit'&&a.parentId===x.id).map(a=>({at:a.createdAt,before:a.before}))];
@@ -352,19 +386,20 @@ function manageCategories() {
  $('#categoryForm').elements.id.onchange=e=>{const c=custom.find(x=>x.id===e.target.value);$('#categoryForm').elements.name.value=c?.description||'';$('#categoryForm').elements.archived.checked=!!c?.archived;};
  $('#categoryForm').onsubmit=async e=>{e.preventDefault();const v=e.target.elements;await saveRecord({type:'category',description:v.name.value.trim(),archived:v.archived.checked},custom.find(x=>x.id===v.id.value));d.close();};
 }
-function openImport() {
+function openImport(business = null) {
+ const records = business?.records || state.records;
  const d=dialog('importDialog','Paste a money message',`<p class="modal-sub">Copy a bank or mobile money message, paste it here, then check the details before saving.</p><div class="paste-heading"><label for="messageText">Message text</label><button type="button" id="pasteMessage" class="text-action">Paste from clipboard</button></div><textarea id="messageText" class="message-input" rows="7" maxlength="500000" placeholder="Paste your transaction message here…" aria-describedby="pasteHelp"></textarea><p id="pasteHelp" class="field-help">You can also press Ctrl+V, or touch and hold to paste. For multiple messages, leave a blank line between them.</p><details class="import-file"><summary>Or upload a text / JSON file</summary><label class="field">Choose file<input id="messageFile" type="file" accept=".txt,.json,text/plain,application/json"></label></details><p id="importSummary" class="field-help" role="status" aria-live="polite"></p><button type="button" id="extractMessages" class="primary save">Review message</button><p class="form-hint">Processed on this device, even offline. Nothing is saved until you confirm.</p>`);
  $('#pasteMessage').onclick=async()=>{try{if(!navigator.clipboard?.readText)throw Error('unavailable');const text=await navigator.clipboard.readText();if(!text.trim())throw Error('empty');if(text.length>500000)throw Error('large');$('#messageText').value=text;$('#importSummary').textContent='Pasted. Review the message when you are ready.';}catch(err){$('#importSummary').textContent=err.message==='large'?'Paste fewer than 500,000 characters.':'Tap the message box and paste using Ctrl+V or touch and hold → Paste.';}$('#messageText').focus();};
  $('#messageFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>500000)throw Error('Choose a file smaller than 500 KB.');let text=await file.text();if(file.name.endsWith('.json')){const items=JSON.parse(text);if(!Array.isArray(items))throw Error('JSON should be an array of messages.');text=items.map(x=>typeof x==='string'?x:x.body||x.message||x.text||'').join('\n\n');}$('#messageText').value=text;}catch(err){$('#importSummary').textContent=err.message;}};
- $('#extractMessages').onclick=()=>{try{if(!$('#messageText').value.trim())throw Error('Paste a transaction message first.');const chunks=$('#messageText').value.split(/\n\s*\n|\n(?=[A-Z0-9]{6,30}\s+Confirmed)/i).filter(x=>x.trim());let skipped=0;const pending=[];for(const chunk of chunks){const x=parseMessage(chunk,accounts(state.records));if(!x||x.source.length>12000||duplicate(x,[...state.records,...pending]))skipped++;else pending.push(x);}importQueue=pending;$('#importSummary').textContent=pending.length?`${pending.length} ready; ${skipped} unrelated or duplicate messages skipped.`:'No new transactions found. Check that you pasted the full message with its amount. Already imported messages are skipped.';if(pending.length){toast(`${pending.length} messages ready; ${skipped} skipped`);d.close();nextImport();}}catch(err){$('#importSummary').textContent=err.message;}};
+ $('#extractMessages').onclick=()=>{try{if(!$('#messageText').value.trim())throw Error('Paste a transaction message first.');const chunks=$('#messageText').value.split(/\n\s*\n|\n(?=[A-Z0-9]{6,30}\s+Confirmed)/i).filter(x=>x.trim());let skipped=0;const pending=[];for(const chunk of chunks){const x=parseMessage(chunk,business ? [] : accounts(records));if(!x||x.source.length>12000||duplicate(x,[...records,...pending]))skipped++;else pending.push(x);}importQueue=pending;$('#importSummary').textContent=pending.length?`${pending.length} ready; ${skipped} unrelated or duplicate messages skipped.`:'No new transactions found. Check that you pasted the full message with its amount. Already imported messages are skipped.';if(pending.length){toast(`${pending.length} messages ready; ${skipped} skipped`);d.close();nextImport(business);}}catch(err){$('#importSummary').textContent=err.message;}};
 }
-function nextImport() {
- imported=null;if(!importQueue.length)return;const x=importQueue.shift();openEntry();imported=x;$('#dialogTitle').textContent='Review transaction';$('#entryImport').hidden=true;$('#entryForm .save-another').hidden=true;const v=$('#entryForm').elements;v.type.value=x.type;v.amount.value=(x.cents/100).toFixed(2);v.fee.value=(x.fee/100).toFixed(2);v.description.value=x.description;v.date.value=x.date;v.time.value=x.time||currentTime();v.reference.value=x.reference;v.accountId.value=x.accountId;v.category.value='';$('#entryExtraDetails').open=!!(x.fee||x.reference);updateEntryFields();$('#timeHint').textContent=x.time?'Time taken from the message. You can change it.':'No time found. Using the current time; change it if needed.';$('#importContext').hidden=false;$('#importContext').textContent=`Check the account, amount and date before saving. ${importQueue.length?importQueue.length+' more queued. ':''}${x.feeConfirmed?'Fee extracted from message.':'No fee found; none assumed.'} ${x.reportedBalance!=null?'Message balance: '+money(x.reportedBalance):''}`;
+function nextImport(business = null) {
+ imported=null;if(!importQueue.length)return;const x=importQueue.shift();openEntry(null, business);imported=x;$('#dialogTitle').textContent='Review transaction';$('#entryImport').hidden=true;$('#entryForm .save-another').hidden=true;const v=$('#entryForm').elements;if(business && x.type==='transfer') { for(const choice of v.type) choice.checked=false; } else v.type.value=x.type;v.amount.value=(x.cents/100).toFixed(2);v.fee.value=(x.fee/100).toFixed(2);v.description.value=x.description;v.date.value=x.date;v.time.value=x.time||currentTime();v.reference.value=x.reference;v.accountId.value=business?UNASSIGNED:x.accountId;v.category.value='';$('#entryExtraDetails').open=!!(x.fee||x.reference);updateEntryFields();$('#timeHint').textContent=x.time?'Time taken from the message. You can change it.':'No time found. Using the current time; change it if needed.';$('#importContext').hidden=false;$('#importContext').textContent=`${business ? (x.type==='transfer'?'Choose Money In or Money Out for this business, then check the amount and date.':'Check the direction, amount and date before saving.') : 'Check the account, amount and date before saving.'} ${importQueue.length?importQueue.length+' more queued. ':''}${x.feeConfirmed?'Fee extracted from message.':'No fee found; none assumed.'} ${x.reportedBalance!=null?'Message balance: '+(business ? new Intl.NumberFormat(undefined,{style:'currency',currency:business.currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(x.reportedBalance / 100) : money(x.reportedBalance)):''}`;
 }
 $('#entryDialog').addEventListener('cancel',()=>{importQueue=[];imported=null;});
 $('#closeDialog').onclick=()=>{importQueue=[];imported=null;$('#entryDialog').close();};
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.close)$('#'+b.dataset.close).close();if(b.dataset.wallet)editWallet(b.dataset.wallet);if(b.dataset.reconcile)reconcile(b.dataset.reconcile);if(b.dataset.walletHistory){if(!historyPage){location.href='/activity?account='+encodeURIComponent(b.dataset.walletHistory);return;}financialFilters.account=b.dataset.walletHistory;state.filter='all';state.page=1;render();$('#activity').scrollIntoView({behavior:'smooth'});}});
-document.addEventListener('click',e=>{if(e.target.closest('[data-import-messages]'))openImport();});
+document.addEventListener('click',e=>{if(e.target.closest('[data-import-messages]'))openImport(businessEntry);});
 const shared=new URLSearchParams(location.search).get('text');if(shared){openImport();$('#messageText').value=shared;history.replaceState(null,'',location.pathname);}
 
 window.addEventListener('online', () => {status(); if ($('#accountDialog').open) updateAccount(); if (!state.clerk) setupAuth(); else sync();}); window.addEventListener('offline', () => {status(); if ($('#accountDialog').open) updateAccount();}); setInterval(sync, 60000); if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(console.error); applyPreferences(cachedPreferences(state.user)); await render(); setupAuth();

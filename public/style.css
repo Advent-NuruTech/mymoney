@@ -65,3 +65,26 @@ dialog[data-finance]{padding:28px}dialog[data-finance] form{padding:0}dialog[dat
 .entry-import{display:block;width:100%;padding:14px 16px;margin:20px 0 0;border:1px solid #dce7d8;border-radius:10px;background:#f3f8e8;color:#003b19;text-align:left;font-size:13px;font-weight:700}
 .entry-import span{display:block;margin-top:4px;font-size:12px;line-height:1.5;font-weight:400;color:#536e5b}
 .entry-import:hover{border-color:#8eaf54}
+
+.business-dialog{padding:28px;width:min(560px,calc(100% - 24px))}
+.business-dialog .modal-head{align-items:center;gap:12px;margin-bottom:14px}
+.business-dialog .modal-head h3{margin:0}
+.business-dialog .close{flex:none}
+.business-dialog form{padding:0}
+.business-dialog h4{margin:12px 0 4px;overflow-wrap:anywhere}
+.business-dialog summary{cursor:pointer;font-weight:700;padding:10px 0}
+.business-dialog details{border-top:1px solid #e1eade;padding:4px 0}
+.business-status{font-size:13px;color:#496452}
+.business-status:empty{display:none}
+.business-back{background:none;border:0;color:#315641;font-size:13px;font-weight:700;padding:8px 0}
+.business-history,.business-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px}
+.business-pages{font-size:12px}
+.business-pages button:disabled{opacity:.5;cursor:default}
+.business-dialog .transaction{cursor:default}
+.business-dialog .transaction .details>*{white-space:normal;overflow-wrap:anywhere}
+.business-dialog .transaction .value{white-space:nowrap}
+.business-dialog .report-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.business-dialog .report-grid strong{overflow-wrap:anywhere}
+.business-link{margin:14px 0}
+.business-link .detail-delete{margin-bottom:8px}
+@media(max-width:480px){.business-dialog{padding:20px}}

@@ -144,7 +144,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <div className="modal-head"><div><p className="eyebrow">YOUR SPACE</p><h3 id="accountTitle">Your account<span className="accent">.</span></h3></div><button type="button" className="close" id="closeAccount" aria-label="Close account">&times;</button></div>
 <div className="account-identity"><div className="account-avatar" id="accountInitial" aria-hidden="true">?</div><div><strong id="accountName">Your account</strong><p id="accountEmail"></p></div></div>
 <div className="account-connection"><span className="account-connection-dot" aria-hidden="true"></span><div><strong id="accountStatus">Checking connection</strong><p id="accountStatusDetail"></p></div></div>
-<div className="account-actions"><button type="button" id="accountSignIn" hidden><span><strong>Sign in to sync</strong><small>Access your account across devices</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountProfile"><span><strong>Manage account</strong><small>Profile, security and active sessions</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountInstall"><span><strong>Install My Money</strong><small>Add the app to your device</small></span><span aria-hidden="true">&#8595;</span></button><p id="installHelp" className="install-help" role="status" hidden></p><button type="button" id="accountSettings"><span><strong>Money settings</strong><small>Country and currency</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSignOut" className="account-sign-out">Sign out</button></div>
+<div className="account-actions"><button type="button" id="accountSignIn" hidden><span><strong>Sign in to sync</strong><small>Access your account across devices</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountProfile"><span><strong>Manage account</strong><small>Profile, security and active sessions</small></span><span aria-hidden="true">&#8599;</span></button><button type="button" id="accountInstall"><span><strong>Install My Money</strong><small>Add the app to your device</small></span><span aria-hidden="true">&#8595;</span></button><p id="installHelp" className="install-help" role="status" hidden></p><button type="button" id="accountBusiness"><span><strong>Business accounts</strong><small>Record transactions with your team</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSettings"><span><strong>Money settings</strong><small>Country and currency</small></span><span aria-hidden="true">&#8250;</span></button><button type="button" id="accountSignOut" className="account-sign-out">Sign out</button></div>
 </div>
 </dialog>
 <dialog id="entryDialog">
@@ -158,8 +158,9 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 <button type="button" className="close" id="closeDialog" aria-label="Close">×</button>
 </div>
 <p className="modal-sub">Keep track of the little things. They add up.</p>
+<p className="field-help" id="entryBusinessContext" hidden></p>
 <button type="button" className="entry-import" id="entryImport" data-import-messages="">Paste a message <span>Review and save a bank or mobile money message</span></button>
-<div className="type-picker"><label><input type="radio" name="type" value="transfer"/><span>Move Money</span></label>
+<div className="type-picker"><label id="entryTransferChoice"><input type="radio" name="type" value="transfer"/><span>Move Money</span></label>
 <label>
 <input type="radio" name="type" value="expense" defaultChecked />
 <span>↗ &nbsp; Money Out</span>
@@ -213,6 +214,7 @@ export default function Home({ activityPage = false }: { activityPage?: boolean 
 </div>
 <p id="timeHint" className="field-help">New entries use the current time if left blank.</p>
 <div id="entryExtras"></div>
+<p className="setup-error" id="entryError" role="alert"></p>
 <button className="primary save" type="submit">Save transaction <span>→</span>
 </button>
 <button className="save-another" type="submit" name="saveAnother" value="yes">Save and add another</button>

@@ -14,7 +14,7 @@ test(`serves the app, exposes runtime ${keyName}, and protects synchronization`,
       server.once('exit', code => reject(new Error(`Next.js exited before starting (${code})`)));
       setTimeout(() => reject(new Error('Next.js did not start in time')), 30000).unref();
     });
-    for (const path of ['/', '/activity', '/app.js', '/manifest.webmanifest', '/sw.js']) {
+    for (const path of ['/', '/activity', '/app.js', '/business.js', '/manifest.webmanifest', '/sw.js']) {
       const response = await fetch(`http://localhost:${port}${path}`);
       assert.equal(response.status, 200, path);
     }
@@ -22,6 +22,8 @@ test(`serves the app, exposes runtime ${keyName}, and protects synchronization`,
     assert.deepEqual(config, { clerkDomain: 'example.clerk.accounts.dev', publishableKey: 'pk_test_example' });
     const response = await fetch(`http://localhost:${port}/api/sync`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries:[]})});
     assert.equal(response.status, 401);
+    const business = await fetch(`http://localhost:${port}/api/business`, { method: 'POST' });
+    assert.equal(business.status, 401);
   } finally {
     if (server.exitCode === null) {
       const exited = new Promise(resolve => server.once('exit', resolve));

@@ -51,3 +51,11 @@ Message import runs entirely offline with review before saving. Paste paragraphs
 Use a single chosen currency for all accounts; changing the existing currency preference changes labels, not values. Reports support account, category, group, date range and daily/weekly/monthly/yearly periods. Review reminders appear in-app and do not request notification permission.
 
 Validation: `node --experimental-strip-types --test tests/*.test.js`, `npm run build`, then `node --experimental-strip-types --test server.test.js`. Real browser offline/share-target and two-device sync acceptance checks remain necessary before production release.
+
+## Business accounts
+
+Apply the full `supabase/migrations/202611200001_business_recording.sql` in the Supabase SQL Editor before deploying. Run it again if the earlier sales-only version was applied. It preserves existing sales as Money In and uses the existing Clerk and Supabase configuration. Run `tests/business-recording.sql` after the migration to check permissions and totals in a rolled-back transaction.
+
+From the profile panel, open **Business accounts** and create an account with a name and currency. Owners can invite employees with single-use links that expire after seven days. Open a business online once on each device to cache access. The business uses the same Money In, Money Out and paste-and-review form as personal recording. Transactions save locally and sync when the user reconnects while signed in, including after reopening the app. Offline history shows the signed-in user's records saved on that device.
+
+The synced history attributes each entry to the signed-in recorder, including the transaction date and time and the server sync timestamp. Owners and admins see the full business activity and totals. Members see their own activity and totals. Transaction fees count once in Money Out.
