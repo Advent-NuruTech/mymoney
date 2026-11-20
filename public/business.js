@@ -47,15 +47,24 @@ export function setupBusiness({ db, getClerk, getOwner, getCurrency, currencies,
   async function request(action, data = {}, owner = getOwner()) {
     if (!navigator.onLine) throw new Error('Connect to the internet to use business accounts.');
     const clerk = getClerk();
-    const token = clerk?.user?.id === owner && await clerk?.session?.getToken();
-    if (!token || clerk?.user?.id !== owner || getOwner() !== owner) throw new Error('Sign in to use business accounts.');
-    const response = await fetch('/api/business', {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action, data }),
-      signal: AbortSignal.timeout(15000),
-    }).catch(() => { throw new Error('Connection interrupted. Try again.'); });
+    const session = clerk?.session;
+    const isCurrentSession = () => session && clerk.session?.id === session.id && clerk.user?.id === owner && getOwner() === owner;
+    async function send(skipCache) {
+      if (!isCurrentSession()) throw new Error('Sign in to use business accounts.');
+      const token = await session.getToken({ skipCache });
+      if (!isCurrentSession()) throw new Error('Sign in to use business accounts.');
+      if (!token) throw new Error('Could not refresh your sign-in. Try again.');
+      return fetch('/api/business', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, data }),
+        signal: AbortSignal.timeout(15000),
+      }).catch(() => { throw new Error('Connection interrupted. Try again.'); });
+    }
+
+    let response = await send(false);
+    if (response.status === 401) response = await send(true);
     const result = await response.json();
     if (!response.ok || result.error) {
       throw Object.assign(new Error(result.error || 'Business accounts are unavailable.'), {

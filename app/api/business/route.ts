@@ -43,7 +43,17 @@ export async function POST(request: Request) {
       body: JSON.stringify({ p_action: body.action, p_data: body.data }),
     });
     if (result.ok) return json(await result.json(), 200);
-    if (result.status === 401) return json({ error: 'Sign in again to continue.' }, 401);
+    const failure = await result.json().catch(() => null);
+    console.error('Supabase business request failed', { status: result.status, code: failure?.code });
+    if (failure?.code === 'PGRST202') {
+      return json({ error: 'Business accounts need a database update. Contact support.' }, 503);
+    }
+    if (result.status === 401 && failure?.code === '42501') {
+      return json({ error: 'Business sign-in needs a server configuration update. Contact support.' }, 503);
+    }
+    if (result.status === 401) {
+      return json({ error: 'Business accounts could not verify your sign-in. Try again, or contact support if it continues.' }, 401);
+    }
     if (result.status === 403) return json({ error: 'You do not have access to this action.' }, 403);
     if (result.status === 400) return json({ error: 'Check the information you entered and try again.' }, 400);
     return json({ error: 'Business accounts are unavailable. Try again shortly.' }, 503);

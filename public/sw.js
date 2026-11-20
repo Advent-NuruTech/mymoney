@@ -1,4 +1,4 @@
-const CACHE = 'my-money-v17';
+const CACHE = 'my-money-v18';
 const SHELL = ['/', '/activity', '/style.css', '/app.js', '/ledger.js', '/business.js', '/logo.png', '/icon-32.png', '/icon-180.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/manifest.webmanifest'];
 self.addEventListener('install', event => event.waitUntil((async () => {
   const cache = await caches.open(CACHE);
