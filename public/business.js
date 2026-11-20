@@ -205,9 +205,10 @@ export function setupBusiness({ db, getClerk, getOwner, getCurrency, currencies,
       if (online) {
         try {
           available = await request('list', {}, owner);
-          await cache('metadata', 'readwrite', store => store.put(available, businessListKey(owner)));
+          await cache('metadata', 'readwrite', store => store.put(available, businessListKey(owner))).catch(() => {});
         } catch (error) {
           if (error.status === 401 || error.status === 403) throw error;
+          message = error.message || 'Business accounts are unavailable. Try again.';
           online = false;
         }
       }
